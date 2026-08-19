@@ -384,6 +384,7 @@ dl.brief dd { margin: 0; font-variant-numeric: tabular-nums; }
 }
 
 .week__games--practice { color: var(--green); }
+.week__games--optional { color: var(--muted); opacity: .8; }
 
 .week + .week { margin-top: 2px; }
 .week--match      { border-left-color: var(--accent); }

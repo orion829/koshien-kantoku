@@ -43,20 +43,34 @@ function matchPhase(phase, label, rounds, month, { alwaysPlayFirst = false } = {
     kind: 'match',
     games,
     conditional: !(alwaysPlayFirst && i === 0),
+    canPractice: false,
   }));
+}
+
+/**
+ * 輸掉之後，這一週會變成練習週。
+ * 變成練習週之後就可以打練習賽了 —— 這很重要，
+ * 不然輸得早的隊伍會整整半年沒球可打，士氣一路掉到谷底沒救。
+ */
+export function toTrainingWeek(w) {
+  return { ...w, kind: 'training', games: [], canPractice: true, eliminated: true };
 }
 
 /** 生成一整年的賽程 */
 export function buildYear(wins) {
   const w = [];
-  const add = (x) => w.push({ week: w.length + 1, games: [], ...x });
-  const plain = (phase, event, month, kind) => add({ phase, event, month, kind, conditional: false });
+  const add = (x) => w.push({ week: w.length + 1, games: [], canPractice: false, ...x });
+  // 所有練習週都可以改成打練習賽，這是玩家自己選的
+  const plain = (phase, event, month, kind) =>
+    add({ phase, event, month, kind, conditional: false, canPractice: kind === 'training' });
 
   // ── 春天 ────────────────────────────────────────────
   plain('newterm', '開學 ／ 升上新年級', '4月初', 'transition');
   plain('newterm', '新生入學（新隊員加入）', '4月中', 'transition');
   plain('newterm', '新生測驗 ／ 決定守備位置', '4月底', 'training');
 
+  // 春天這三週預設是練習賽（保底，讓新手進夏天時士氣是滿的），
+  // 但玩家想改成純練習也可以。
   ['5月初', '5月底', '6月初'].forEach((month, i) =>
     add({
       phase: 'practice',
@@ -65,6 +79,8 @@ export function buildYear(wins) {
       kind: 'training',
       games: ['練習賽'],
       conditional: false,
+      canPractice: true,
+      defaultPractice: true,
     }));
 
   plain('pretourn', '決定 20 人名單 ／ 抽籤', '6月底', 'transition');
@@ -144,6 +160,10 @@ export function runSummary(wins) {
     transition: count('transition'),
     conditional: flat.filter((x) => x.conditional).length,
     officialGames,
-    practiceGames: flat.filter((x) => x.phase === 'practice').length,
+    // 預設就會打的練習賽（春天那三週）
+    practiceGames: flat.filter((x) => x.defaultPractice).length,
+    // 可以拿來打練習賽的週數（全部輸掉的話還會更多）
+    practiceSlots: flat.filter((x) => x.canPractice).length,
+    practiceSlotsIfEliminated: flat.filter((x) => x.canPractice || x.conditional).length,
   };
 }

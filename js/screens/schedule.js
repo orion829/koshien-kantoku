@@ -16,10 +16,14 @@ export function renderSchedule(root, game, onReset) {
   const s = runSummary(difficulty.wins);
 
   const week = (w) => {
-    const n = w.games.length;
-    const badge = n
-      ? `<span class="week__games${w.kind === 'match' ? '' : ' week__games--practice'}">${n} ${UI.unitGame}</span>`
-      : '<span class="week__games"></span>';
+    let badge = '<span class="week__games"></span>';
+    if (w.kind === 'match') {
+      badge = `<span class="week__games">${w.games.length} ${UI.unitGame}</span>`;
+    } else if (w.defaultPractice) {
+      badge = `<span class="week__games week__games--practice">${UI.badgePractice}</span>`;
+    } else if (w.canPractice) {
+      badge = `<span class="week__games week__games--optional">${UI.badgeCanPractice}</span>`;
+    }
     return `
       <li class="week week--${w.kind}${w.conditional ? ' is-conditional' : ''}">
         <span class="week__abs">${w.abs}</span>
@@ -53,7 +57,7 @@ export function renderSchedule(root, game, onReset) {
       <ul class="tally">
         <li><b>${s.total}</b><span>${UI.tallyTotal}</span></li>
         <li><b>${s.officialGames}</b><span>${UI.tallyOfficial}</span></li>
-        <li><b>${s.practiceGames}</b><span>${UI.tallyPractice}</span></li>
+        <li><b>${s.practiceSlots}</b><span>${UI.tallyPractice}</span></li>
         <li><b>${s.match}</b><span>${UI.tallyMatchWeek}</span></li>
         <li><b>${s.training}</b><span>${UI.tallyTrainWeek}</span></li>
         <li><b>${s.transition}</b><span>${UI.tallyTransWeek}</span></li>

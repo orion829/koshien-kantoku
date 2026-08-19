@@ -87,7 +87,17 @@ js/
   data/
     prefectures.js     49 個地區的資料
     calendar.js        賽程表生成
+  rules/
+    morale.js          士氣與練習效率
   screens/
     setup.js           開始畫面
     schedule.js        賽程確認畫面
 ```
+
+## 五、平衡規則
+
+改動任何會影響平衡的東西時，要用程式驗證，不要用猜的。
+`js/rules/morale.js` 裡的 `simulate()` 就是為了這件事。
+
+目前已知的平衡目標：**贏球的好處要能抵過輸球多拿到的練習時間。**
+現在故意輸球比較強，因為贏球的獎勵（招生品質、大賽經驗）還沒做。
