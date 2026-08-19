@@ -1,24 +1,24 @@
-// 都道府県データ
-// 基礎数値は第108回全国高等学校野球選手権大会（2026年）の地方大会参加チーム数。
-// 出典: 日本高等学校野球連盟 https://www.jhbf.or.jp/topics/detail/593
-// 全49地区・合計3,360チーム（北海道と東京は2地区に分割）。
+// 各縣市資料
+// 隊伍數用的是 2026 年第 108 屆全國高中棒球錦標賽的真實數字。
+// 來源：日本高中棒球聯盟 https://www.jhbf.or.jp/topics/detail/593
+// 全國 49 區、共 3,360 隊（北海道和東京各分成 2 區）。
 //
-// necessaryWins = ceil(log2(teams))  — シード無しの単純トーナメント想定。
-// 地方大会の週数はこの necessaryWins に等しい（1週＝1試合）。
+// necessaryWins = ceil(log2(teams))  - 當作沒有種子的單淘汰賽來算。
+// 地區大賽要贏幾場就是這個數字。
 
 export const REGIONS = [
   { id: 'hokkaido',     name: '北海道' },
   { id: 'tohoku',       name: '東北'   },
-  { id: 'kanto',        name: '関東'   },
+  { id: 'kanto',        name: '關東'   },
   { id: 'hokushinetsu', name: '北信越' },
   { id: 'tokai',        name: '東海'   },
   { id: 'kinki',        name: '近畿'   },
-  { id: 'chugoku',      name: '中国'   },
-  { id: 'shikoku',      name: '四国'   },
+  { id: 'chugoku',      name: '中國地方'   },
+  { id: 'shikoku',      name: '四國'   },
   { id: 'kyushu',       name: '九州'   },
 ];
 
-// [id, 表示名, 地方id, 参加チーム数]
+// [代號, 顯示名稱, 地區代號, 隊伍數]
 const RAW = [
   ['kita-hokkaido',  '北北海道', 'hokkaido',      68],
   ['minami-hokkaido','南北海道', 'hokkaido',      96],
@@ -47,7 +47,7 @@ const RAW = [
   ['nagano',  '長野', 'hokushinetsu', 69],
 
   ['gifu',     '岐阜',   'tokai', 62],
-  ['shizuoka', '静岡',   'tokai', 106],
+  ['shizuoka', '靜岡',   'tokai', 106],
   ['aichi',    '愛知',   'tokai', 174],
   ['mie',      '三重',   'tokai', 57],
 
@@ -61,10 +61,10 @@ const RAW = [
   ['tottori',   '鳥取', 'chugoku', 21],
   ['shimane',   '島根', 'chugoku', 37],
   ['okayama',   '岡山', 'chugoku', 54],
-  ['hiroshima', '広島', 'chugoku', 85],
+  ['hiroshima', '廣島', 'chugoku', 85],
   ['yamaguchi', '山口', 'chugoku', 50],
 
-  ['tokushima', '徳島', 'shikoku', 29],
+  ['tokushima', '德島', 'shikoku', 29],
   ['kagawa',    '香川', 'shikoku', 35],
   ['ehime',     '愛媛', 'shikoku', 46],
   ['kochi',     '高知', 'shikoku', 24],
@@ -75,15 +75,15 @@ const RAW = [
   ['kumamoto',  '熊本',   'kyushu', 54],
   ['oita',      '大分',   'kyushu', 41],
   ['miyazaki',  '宮崎',   'kyushu', 46],
-  ['kagoshima', '鹿児島', 'kyushu', 62],
-  ['okinawa',   '沖縄',   'kyushu', 56],
+  ['kagoshima', '鹿兒島', 'kyushu', 62],
+  ['okinawa',   '沖繩',   'kyushu', 56],
 ];
 
 const TIERS = {
-  5: { tierId: 'sparse',    label: '過疎県', stars: 1, scoutPool: 1 },
-  6: { tierId: 'mid',       label: '中堅県', stars: 2, scoutPool: 2 },
-  7: { tierId: 'strong',    label: '強豪県', stars: 3, scoutPool: 3 },
-  8: { tierId: 'deathzone', label: '激戦区', stars: 4, scoutPool: 4 },
+  5: { tierId: 'sparse',    label: '簡單'  , stars: 1, scoutPool: 1 },
+  6: { tierId: 'mid',       label: '普通'  , stars: 2, scoutPool: 2 },
+  7: { tierId: 'strong',    label: '困難'  , stars: 3, scoutPool: 3 },
+  8: { tierId: 'deathzone', label: '地獄'  , stars: 4, scoutPool: 4 },
 };
 
 function necessaryWins(teams) {

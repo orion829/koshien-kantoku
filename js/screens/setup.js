@@ -13,7 +13,7 @@ export function renderSetup(root, onStart) {
       <header class="masthead">
         <h1 class="masthead__title">${UI.appTitle}</h1>
         <p class="masthead__sub">${UI.appSubtitle}</p>
-        <p class="masthead__meta">全${REPRESENTATIVES}地区・${TOTAL_TEAMS.toLocaleString()}チーム</p>
+        <p class="masthead__meta">全國 ${REPRESENTATIVES} 區・${TOTAL_TEAMS.toLocaleString()} ${UI.unitTeam}</p>
       </header>
 
       <div class="setup__body">
@@ -102,9 +102,9 @@ export function renderSetup(root, onStart) {
         <dd>${s.years.map((n, i) => `${UI.yearLabels[i]} ${n}${UI.unitWeek}`).join(' ／ ')}</dd>
       </dl>
       <p class="brief__split">
-        <span class="swatch swatch--match"></span>試合 ${s.match}
-        <span class="swatch swatch--training"></span>育成 ${s.training}
-        <span class="swatch swatch--transition"></span>過渡 ${s.transition}
+        <span class="swatch swatch--match"></span>${UI.kindMatch} ${s.match}
+        <span class="swatch swatch--training"></span>${UI.kindTraining} ${s.training}
+        <span class="swatch swatch--transition"></span>${UI.kindTransition} ${s.transition}
       </p>`;
   }
 

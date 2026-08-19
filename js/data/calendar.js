@@ -1,14 +1,14 @@
-// 年間スケジュール定義
+// 賽程表生成
 //
-// 時間単位は「週」。ただし試合の密度は種別で異なる:
-//   公式戦   … 1週に最大3試合（GAMES_PER_WEEK）
-//   練習試合 … 1週に1試合
+// 時間單位是「週」，但比賽的密度分兩種：
+//   正式比賽 … 一週最多 3 場（GAMES_PER_WEEK）
+//   練習賽   … 一週 1 場
 //
-// この密度差が投手運用の制約を生む。高野連の投球数制限は「1週間500球」なので、
-// 公式戦週に3試合を投げ切れる投手は存在しない ＝ 複数投手の育成が必須になる。
+// 這個差別是故意的。日本的規則是投手一週最多投 500 球，
+// 所以沒有任何一個投手投得完一週三場 —— 你一定要養第二、第三個投手。
 //
-// kind: 'match' 試合週 | 'training' 育成週 | 'transition' 過渡週
-// conditional: true の週は敗退時に育成週へ転換される（士気減衰ルールの対象）
+// kind: 'match' 比賽週 | 'training' 練習週 | 'transition' 過場週
+// conditional: true 的週，輸掉之後會變成練習週（士氣會慢慢掉）
 
 export const GAMES_PER_WEEK = 3;
 
@@ -18,23 +18,23 @@ const chunk = (arr, n) => {
   return out;
 };
 
-const TAIL = ['準々決勝', '準決勝', '決勝'];
+const TAIL = ['八強賽', '四強賽', '冠軍賽'];
 
-/** 必要勝利数から回戦名の配列を作る（例: 6 → 1〜3回戦 + 準々・準決・決勝） */
+/** 從「要贏幾場」算出每一輪的名字（例：6 → 第1〜3輪 + 八強・四強・冠軍） */
 export function roundNames(wins) {
   if (wins <= TAIL.length) return TAIL.slice(TAIL.length - wins);
   const r = [];
-  for (let i = 1; i <= wins - TAIL.length; i++) r.push(`${i}回戦`);
+  for (let i = 1; i <= wins - TAIL.length; i++) r.push(`第${i}輪`);
   return r.concat(TAIL);
 }
 
-// 甲子園は49代表 → ceil(log2(49)) = 6勝。センバツは32校 → 5勝。
+// 甲子園有 49 個代表 → 要贏 6 場。春季甲子園 32 校 → 要贏 5 場。
 export const KOSHIEN_WINS = 6;
 export const SENBATSU_WINS = 5;
 
-const AUTUMN_ROUNDS = ['初戦', '準決勝', '決勝'];
+const AUTUMN_ROUNDS = ['第1輪', '四強賽', '冠軍賽'];
 
-/** 公式戦フェーズを週へ畳み込む */
+/** 把一個比賽階段折成好幾週 */
 function matchPhase(phase, label, rounds, month, { alwaysPlayFirst = false } = {}) {
   return chunk(rounds, GAMES_PER_WEEK).map((games, i) => ({
     phase,
@@ -46,66 +46,66 @@ function matchPhase(phase, label, rounds, month, { alwaysPlayFirst = false } = {
   }));
 }
 
-/** 1年分のスケジュールを生成する */
+/** 生成一整年的賽程 */
 export function buildYear(wins) {
   const w = [];
   const add = (x) => w.push({ week: w.length + 1, games: [], ...x });
   const plain = (phase, event, month, kind) => add({ phase, event, month, kind, conditional: false });
 
-  // ── 春 ──────────────────────────────────────────────
-  plain('newterm', '始業式 ／ 学年アップ', '4月上', 'transition');
-  plain('newterm', '入学式（新入生入部）', '4月中', 'transition');
-  plain('newterm', '新入生の適性判定 ／ ポジション決め', '4月下', 'training');
+  // ── 春天 ────────────────────────────────────────────
+  plain('newterm', '開學 ／ 升上新年級', '4月初', 'transition');
+  plain('newterm', '新生入學（新隊員加入）', '4月中', 'transition');
+  plain('newterm', '新生測驗 ／ 決定守備位置', '4月底', 'training');
 
-  ['5月上', '5月下', '6月上'].forEach((month, i) =>
+  ['5月初', '5月底', '6月初'].forEach((month, i) =>
     add({
       phase: 'practice',
-      event: `練習試合 ${'①②③'[i]}${i === 1 ? '（他校偵察）' : ''}`,
+      event: `練習賽 ${'①②③'[i]}${i === 1 ? '（順便觀察對手）' : ''}`,
       month,
       kind: 'training',
-      games: ['練習試合'],
+      games: ['練習賽'],
       conditional: false,
     }));
 
-  plain('pretourn', '登録20名決定 ／ 抽選会', '6月下', 'transition');
-  plain('pretourn', '最終調整', '6月下', 'training');
+  plain('pretourn', '決定 20 人名單 ／ 抽籤', '6月底', 'transition');
+  plain('pretourn', '最後調整', '6月底', 'training');
 
-  // ── 夏 ──────────────────────────────────────────────
-  matchPhase('regional', '地方大会', roundNames(wins), (i) => (i === 0 ? '7月上' : '7月下'), {
+  // ── 夏天 ────────────────────────────────────────────
+  matchPhase('regional', '地區大賽', roundNames(wins), (i) => (i === 0 ? '7月初' : '7月底'), {
     alwaysPlayFirst: true,
   }).forEach(add);
 
-  matchPhase('koshien', '甲子園', roundNames(KOSHIEN_WINS), (i) => (i === 0 ? '8月上' : '8月下'))
+  matchPhase('koshien', '甲子園', roundNames(KOSHIEN_WINS), (i) => (i === 0 ? '8月初' : '8月底'))
     .forEach(add);
 
-  // ── 秋 ──────────────────────────────────────────────
-  plain('handover', '3年生引退 ／ 新チーム発足', '8月下', 'transition');
-  plain('handover', '新主将決定 ／ ポジション再編', '9月上', 'transition');
+  // ── 秋天 ────────────────────────────────────────────
+  plain('handover', '三年級退隊 ／ 組新隊伍', '8月底', 'transition');
+  plain('handover', '選新隊長 ／ 重排守備位置', '9月初', 'transition');
 
-  matchPhase('autumn', '秋季県大会', AUTUMN_ROUNDS, '9月下', { alwaysPlayFirst: true }).forEach(add);
-  matchPhase('autumnArea', '秋季地区大会', AUTUMN_ROUNDS, '10月中').forEach(add);
+  matchPhase('autumn', '秋季縣大賽', AUTUMN_ROUNDS, '9月底', { alwaysPlayFirst: true }).forEach(add);
+  matchPhase('autumnArea', '秋季地區大賽', AUTUMN_ROUNDS, '10月中').forEach(add);
 
-  // ── 冬 ──────────────────────────────────────────────
+  // ── 冬天 ────────────────────────────────────────────
   [
-    ['ドラフト会議 ／ スカウト解禁', '10月下'],
-    ['中学視察', '11月'],
-    ['冬合宿 ①', '12月'],
-    ['冬合宿 ②', '12月'],
-    ['スカウト最終交渉', '1月'],
-    ['新入生確定（スカウト締切）', '2月'],
+    ['職棒選秀 ／ 開始招生', '10月底'],
+    ['去看國中生', '11月'],
+    ['冬季集訓 ①', '12月'],
+    ['冬季集訓 ②', '12月'],
+    ['最後招生談判', '1月'],
+    ['確定新生（招生截止）', '2月'],
   ].forEach(([event, month]) => plain('winter', event, month, 'training'));
 
-  // ── 春（センバツ） ──────────────────────────────────
-  plain('senbatsu', 'センバツ選考発表 ／ 卒業式', '3月上', 'transition');
-  matchPhase('senbatsu', 'センバツ', roundNames(SENBATSU_WINS), '3月下').forEach(add);
+  // ── 春天（春季甲子園） ──────────────────────────────
+  plain('senbatsu', '春季甲子園選拔公布 ／ 畢業典禮', '3月初', 'transition');
+  matchPhase('senbatsu', '春季甲子園', roundNames(SENBATSU_WINS), '3月底').forEach(add);
 
   return w;
 }
 
 /**
- * 3年分のラン全体を生成する。
- *   第1年: 6月就任 → 春の6週を飛ばす
- *   第3年: 夏の甲子園決勝で打ち切り
+ * 生成一整局（三年）的賽程。
+ *   第1年：六月上任 → 跳過春天那 6 週
+ *   第3年：夏天甲子園冠軍賽打完就結束
  */
 export function buildRun(wins) {
   const full = buildYear(wins);
