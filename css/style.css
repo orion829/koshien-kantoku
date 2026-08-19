@@ -407,3 +407,226 @@ dl.brief dd { margin: 0; font-variant-numeric: tabular-nums; }
   font-size: 11px;
   white-space: nowrap;
 }
+
+/* ---------- 分頁 ---------- */
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.tab:hover { color: var(--text); }
+
+.tab.is-active {
+  color: var(--accent);
+  border-color: var(--line);
+  background: var(--surface);
+  font-weight: 500;
+}
+
+/* ---------- 能力等級的顏色 ---------- */
+
+.g { font-weight: 600; font-variant-numeric: tabular-nums; }
+.g.g--S { color: #f0c34a; }
+.g.g--A { color: #d98a4a; }
+.g.g--B { color: #6fae7a; }
+.g.g--C { color: #6f9dc4; }
+.g.g--D { color: #a8b3b1; }
+.g.g--E { color: #8d9c9a; }
+.g.g--F { color: #6b7877; }
+.g.g--G { color: #55605f; }
+
+/* ---------- 開局種類 ---------- */
+
+.archetype {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  background: var(--surface);
+}
+
+.archetype b { display: block; font-size: 15px; font-weight: 600; }
+.archetype span { font-size: 13px; color: var(--muted); }
+.archetype--weak { border-left-color: var(--danger); }
+.archetype--golden { border-left-color: #f0c34a; }
+.archetype--golden b { color: #f0c34a; }
+
+/* ---------- 年級分組 ---------- */
+
+.grade-group { margin-bottom: 22px; }
+
+.grade-group__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  letter-spacing: .06em;
+}
+
+.grade-group__count { color: var(--muted); font-size: 12px; font-weight: 400; }
+
+.warn {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  padding: 0 7px;
+}
+
+/* ---------- 球員 ---------- */
+
+.players { list-style: none; margin: 0; padding: 0; }
+
+.player {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 7px;
+}
+
+.player.is-open { border-color: var(--accent); }
+
+.player__head {
+  display: grid;
+  grid-template-columns: 34px 26px 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player__year {
+  font-size: 11px;
+  text-align: center;
+  border-radius: 4px;
+  padding: 1px 0;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+}
+
+.player__year.y3 { color: var(--accent); border-color: var(--accent); }
+
+.player__pos {
+  font-size: 12px;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+.player__name { font-weight: 500; }
+.player__talent { font-size: 11px; color: #f0c34a; letter-spacing: .05em; }
+.player__ovr { font-size: 17px; }
+
+.player__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.stat i { font-style: normal; color: var(--muted); margin-right: 3px; }
+
+.player__skills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+.skill {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+}
+
+.skill--good { color: var(--blue); border-color: var(--blue); }
+.skill--bad { color: var(--danger); border-color: var(--danger); }
+
+/* ---------- 球員詳細 ---------- */
+
+.player__detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.player__detail h4 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: .06em;
+}
+
+.player__detail h4:first-child { margin-top: 0; }
+.hint { font-weight: 400; font-size: 11px; opacity: .75; margin-left: 6px; }
+
+.detail__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 18px;
+}
+
+.detail__grid > div > h4 { margin-top: 0; }
+
+table.abil { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.abil td { padding: 2px 0; }
+table.abil td:first-child { color: var(--muted); }
+table.abil td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+table.abil td.num i { font-style: normal; }
+
+.apts { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.apt {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.apt i { font-style: normal; color: var(--muted); }
+.apt em { font-style: normal; font-size: 10.5px; color: var(--muted); }
+
+.skill-lines { list-style: none; margin: 0; padding: 0; }
+
+.skill-line {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+  padding: 3px 0;
+  align-items: baseline;
+}
+
+.skill-line b { min-width: 5em; font-weight: 500; }
+.skill-line span { color: var(--muted); }
+.skill-line--good b { color: var(--blue); }
+.skill-line--bad b { color: var(--danger); }

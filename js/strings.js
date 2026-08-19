@@ -54,16 +54,4 @@ export const UI = {
   unitGame: '場',
 };
 
-const SURNAMES = ['佐藤', '鈴木', '高橋', '田中', '渡邊', '伊藤', '山本', '中村', '小林', '加藤',
-  '吉田', '山田', '佐佐木', '山口', '松本', '井上', '木村', '齋藤', '清水', '原田'];
-const GIVEN = ['一郎', '健太', '誠', '修', '隆', '浩二', '大輔', '智也', '剛', '猛',
-  '徹', '勝', '康弘', '幸雄', '正樹', '和彥', '信也', '達也', '洋一', '宏'];
-
-const SCHOOL_BASE = ['青嶺', '白鷺', '東雲', '海洋', '鶴翔', '明星', '聖陵', '南陽', '北稜', '光陵',
-  '若葉', '櫻台', '綠丘', '紅葉', '天神', '蒼空', '常盤', '旭丘', '舞鶴', '霞丘'];
-const SCHOOL_SUFFIX = ['高中', '學園高中', '工業高中', '商業高中', '第一高中', '農業高中', '東高中', '西高中'];
-
-const pick = (a) => a[Math.floor(Math.random() * a.length)];
-
-export const randomManagerName = () => `${pick(SURNAMES)} ${pick(GIVEN)}`;
-export const randomSchoolName = () => `${pick(SCHOOL_BASE)}${pick(SCHOOL_SUFFIX)}`;
+export { randomPersonName as randomManagerName, randomSchoolName } from './data/names.js';

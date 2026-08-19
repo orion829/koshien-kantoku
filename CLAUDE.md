@@ -87,12 +87,23 @@ js/
   data/
     prefectures.js     49 個地區的資料
     calendar.js        賽程表生成
+    abilities.js       能力定義、守備位置、特殊能力
+    names.js           人名、校名產生器
   rules/
     morale.js          士氣與練習效率
+    player.js          球員的資料模型
+    roster.js          你接手的那支隊伍
   screens/
     setup.js           開始畫面
-    schedule.js        賽程確認畫面
+    team.js            主畫面（分頁）
+    roster.js          選手名單
+    schedule.js        賽程表
 ```
+
+### 能力等級的說法
+
+能力用 0〜100 存，顯示成 S〜G（每 10 分一級，G 是 30 以下全包）。
+高中生上限 90。跟玩家講的時候用字母，不要講數字。
 
 ## 五、平衡規則
 
