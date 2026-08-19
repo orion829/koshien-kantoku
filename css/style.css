@@ -331,16 +331,59 @@ dl.brief dd { margin: 0; font-variant-numeric: tabular-nums; }
 
 .weeks { list-style: none; margin: 0; padding: 0; }
 
+.tally {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+.tally li {
+  flex: 1 1 90px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.tally b {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.tally span {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 .week {
   display: grid;
-  grid-template-columns: 30px 46px 1fr auto;
-  gap: 8px;
+  grid-template-columns: 26px 44px 1fr auto auto;
+  gap: 7px;
   align-items: baseline;
   padding: 5px 8px;
   border-left: 2px solid var(--line-strong);
   font-size: 12.5px;
   line-height: 1.5;
 }
+
+.week__games {
+  font-size: 10.5px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.week__games--practice { color: var(--green); }
 
 .week + .week { margin-top: 2px; }
 .week--match      { border-left-color: var(--accent); }
