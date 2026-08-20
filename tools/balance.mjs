@@ -17,15 +17,50 @@ const fmt = (v) => (A.grade(Math.round(v)) + Math.round(v)).padEnd(5);
 const head = (s) => console.log(`\n── ${s} ${'─'.repeat(Math.max(0, 58 - s.length))}`);
 
 // ── 1. 士氣與練習效率 ───────────────────────────────────
-head('士氣：最佳打法應該是「練4打1」，平均 0.80');
+head('士氣：被淘汰之後最多只能維持 0.70，回不到 100%');
 {
   const rep = (cycle, n) => Array.from({ length: n }, (_, i) => cycle[i % cycle.length]);
   const rows = [['都不打練習賽', ['train']]];
   for (const k of [3, 4, 5]) rows.push([`練${k}打1`, [...Array(k).fill('train'), 'practice']]);
+  rows.push(['還在打比賽', ['train', 'train', 'train', 'match']]);
   for (const [name, cycle] of rows) {
-    const r = M.simulate(rep(cycle, 60));
+    const r = M.simulate(rep(cycle, 120));
     console.log(`  ${name.padEnd(14)} 平均效率 ${r.average}`);
   }
+  console.log('  ※ 只有正式比賽能把計時器歸零，練習賽最多拉回到 2');
+}
+
+head('贏 vs 故意輸：邊際兌換率應該明顯低於 1（多出來的週不值錢）');
+{
+  const run = cal.buildRun(6).flat();
+  const lost = run.map((w) => (w.conditional
+    ? { ...w, kind: 'training', games: [], canPractice: true, eliminated: true } : w));
+
+  const play = (weeks, threshold) => {
+    let c = 0; let total = 0; let n = 0;
+    weeks.forEach((w) => {
+      if (w.kind === 'match' && !w.eliminated) { c = M.advance(c, 'match'); return; }
+      if (w.kind === 'transition') { c = M.advance(c, 'rest'); return; }
+      const act = (w.canPractice && c >= threshold) ? 'practice' : 'train';
+      total += M.trainingYield(c, act);
+      c = M.advance(c, act); n += 1;
+    });
+    return { n, total };
+  };
+  // 每條路線各自找最佳策略，不然比較不公平
+  const best = (weeks) => [2, 3, 4, 5, 6, 8, 10, 999]
+    .map((t) => play(weeks, t))
+    .reduce((a, b) => (b.total > a.total ? b : a));
+
+  const win = best(run);
+  const tank = best(lost);
+  console.log(`  每年拿冠軍   練習週 ${win.n} ｜總成果 ${win.total.toFixed(1)}`
+    + ` ｜平均 ${(win.total / win.n).toFixed(3)}`);
+  console.log(`  每年首戰就輸 練習週 ${tank.n} ｜總成果 ${tank.total.toFixed(1)}`
+    + ` ｜平均 ${(tank.total / tank.n).toFixed(3)}`);
+  console.log(`  邊際兌換率 ${((tank.total - win.total) / (tank.n - win.n)).toFixed(2)}`
+    + `　輸光多拿 ${((tank.total / win.total - 1) * 100).toFixed(0)}%`);
+  console.log('  ※ 剩下的差距要靠「贏球的獎勵」補，那個還沒做');
 }
 
 // ── 2. 天賦 × 年級的起點 ────────────────────────────────

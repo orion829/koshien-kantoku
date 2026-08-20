@@ -4,7 +4,7 @@ import {
 import {
   overall, overallGrade, isPitcher, playerVelocity, fieldingAt,
 } from '../rules/player.js';
-import { rosterSummary, ROSTER_LIMIT } from '../rules/roster.js';
+import { rosterSummary, ROSTER_LIMIT, active } from '../rules/roster.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const gradeYearLabel = (n) => `${n}年`;
@@ -98,8 +98,9 @@ function playerDetail(p) {
 }
 
 export function renderRoster(root, game) {
-  const players = game.team.players;
-  const s = rosterSummary(players);
+  // 退隊的三年級不顯示。他們還在學校，但不再上場了。
+  const players = active(game.team.players);
+  const s = rosterSummary(game.team.players);
   const arch = game.team.archetype;
 
   const groups = [3, 2, 1].map((gy) => {
@@ -125,8 +126,10 @@ export function renderRoster(root, game) {
 
       <ul class="tally">
         <li><b>${s.total}</b><span>總人數</span></li>
-        <li><b>${s.byGrade[3]}</b><span>三年級</span></li>
-        <li><b>${s.afterGraduation}</b><span>八月後剩下</span></li>
+        ${s.retired
+    ? `<li><b>${s.retired}</b><span>已退隊</span></li>`
+    : `<li><b>${s.byGrade[3]}</b><span>三年級</span></li>
+           <li><b>${s.afterGraduation}</b><span>八月後剩下</span></li>`}
         <li><b>${s.pitchers}</b><span>投手</span></li>
         <li><b class="g g--${grade(s.overall)}">${grade(s.overall)}</b><span>隊伍平均</span></li>
         <li><b class="g g--${overallGrade(s.best)}">${overallGrade(s.best)}</b><span>最強球員</span></li>

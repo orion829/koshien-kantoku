@@ -11,6 +11,16 @@
 /** 打一場練習賽，計時器往回撥幾週 */
 export const PRACTICE_REWIND = 4;
 
+/**
+ * 練習賽最多只能把計時器拉回到這個數字，不能歸零。
+ * 只有「正式比賽」才能真的歸零。
+ *
+ * 為什麼要有這條：如果練習賽能歸零，「練4打1」就可以永遠維持 100% 效率，
+ * 士氣等於沒有壓力。有了下限之後，被淘汰的隊伍最多只能維持七成左右，
+ * 還在打比賽的隊伍才有 100%。贏球本身就變成一種獎勵。
+ */
+export const PRACTICE_FLOOR = 2;
+
 /** 練習賽本身不產生練習成果（那一週拿去打球了） */
 export const PRACTICE_TRAINING_VALUE = 0;
 
@@ -38,7 +48,9 @@ export function moraleLabel(weeksSinceMatch) {
  */
 export function advance(weeksSinceMatch, action) {
   if (action === 'match') return 0;
-  if (action === 'practice') return Math.max(0, weeksSinceMatch - PRACTICE_REWIND);
+  if (action === 'practice') {
+    return Math.max(PRACTICE_FLOOR, weeksSinceMatch - PRACTICE_REWIND);
+  }
   return weeksSinceMatch + 1;
 }
 

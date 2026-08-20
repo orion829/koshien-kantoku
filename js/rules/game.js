@@ -8,10 +8,13 @@
 // 輸掉的比賽會讓後面的週變成練習週，這在 calendar.js 的 toTrainingWeek 裡。
 
 import { toTrainingWeek } from '../data/calendar.js';
+import { grade } from '../data/abilities.js';
 import { MENUS, menuById, trainTeam } from './training.js';
-import { efficiency, moraleLabel, advance, PRACTICE_REWIND } from './morale.js';
+import { efficiency, moraleLabel, advance } from './morale.js';
 import { overall, isPitcher, createPlayer } from './player.js';
-import { advanceYear, addRecruits } from './roster.js';
+import {
+  advanceYear, addRecruits, active, retireSeniors, MIN_PLAYERS,
+} from './roster.js';
 
 // ── 比賽的資格關聯 ──────────────────────────────────────
 // 地區大賽輸了就沒有甲子園；秋季縣大賽輸了就沒有秋季地區大賽，
@@ -93,9 +96,9 @@ const STAT_NAME = {
 
 // ── 比賽（暫時的簡單判定，之後要換成真的模擬）────────────
 
-/** 隊伍戰力：先發野手的平均 + 王牌投手 */
-export function teamStrength(players) {
-  const sorted = [...players].sort((a, b) => overall(b) - overall(a));
+/** 隊伍戰力：先發野手的平均 + 王牌投手（退隊的不算） */
+export function teamStrength(all) {
+  const sorted = active(all).sort((a, b) => overall(b) - overall(a));
   const batters = sorted.filter((p) => !isPitcher(p)).slice(0, 8);
   const ace = sorted.find(isPitcher);
   const batAvg = batters.length
@@ -199,7 +202,10 @@ export function takeAction(game, actionId, rng = Math.random) {
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'practice');
       log.action = '練習賽';
     } else if (menuById(actionId)) {
-      trainTeam(game.team.players, actionId, eff);
+      const players = active(game.team.players);
+      const before = snapshotGrades(players);
+      const results = trainTeam(players, actionId, eff);
+      log.gains = summariseGains(players, results, before);
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'train');
       log.action = menuById(actionId).name;
       log.trained = true;
@@ -210,10 +216,77 @@ export function takeAction(game, actionId, rng = Math.random) {
   } else {
     game.morale.weeksSinceMatch += 1;
     log.action = '（過場）';
+    if (w.retireSeniors) {
+      log.retired = retireSeniors(game.team.players);
+      log.joined = fillToMinimum(game, rng);
+    }
   }
 
   step(game, rng);
   return log;
+}
+
+/**
+ * 三年級退隊之後如果人數不夠 9 個，會有校內的同學來入部。
+ * 現實中人數真的不夠是要組聯合隊伍的，那個還沒做，
+ * 先用這個保底避免比賽開不成。他們都很弱（1 星）。
+ */
+function fillToMinimum(game, rng) {
+  const need = MIN_PLAYERS - active(game.team.players).length;
+  if (need <= 0) return 0;
+  const holes = missingPositions(active(game.team.players));
+  const recruits = Array.from({ length: need }, (_, i) => createPlayer({
+    gradeYear: rng() < 0.5 ? 1 : 2,
+    talent: 1,
+    position: holes[i] || null,
+    rng,
+  }));
+  game.team.players = addRecruits(game.team.players, recruits);
+  return need;
+}
+
+/** 哪些守備位置現在沒人 */
+function missingPositions(players) {
+  const have = new Set(players.map((p) => p.position));
+  return ['P', 'C', 'SS', 'CF', '1B', '2B', '3B', 'RF', 'LF'].filter((p) => !have.has(p));
+}
+
+// ── 這一週長了多少（給畫面顯示）────────────────────────
+
+const snapshotGrades = (players) => Object.fromEntries(players.map((p) => [
+  p.id, Object.fromEntries(Object.entries(p.abilities).map(([k, v]) => [k, grade(v)])),
+]));
+
+/**
+ * 把全隊的成長整理成看得懂的東西：
+ *   avg 各項能力的平均成長
+ *   ups 有人升級了（例如 打擊 D → C），這是最有感的部分
+ */
+function summariseGains(players, results, before) {
+  const totals = {};
+  results.forEach(({ gains }) => {
+    for (const [stat, g] of Object.entries(gains)) {
+      totals[stat] = (totals[stat] || 0) + g;
+    }
+  });
+
+  const avg = Object.entries(totals)
+    .map(([stat, sum]) => ({ stat, name: STAT_NAME[stat], value: sum / players.length }))
+    .filter((x) => x.value >= 0.05)
+    .sort((a, b) => b.value - a.value);
+
+  const ups = [];
+  players.forEach((p) => {
+    const was = before[p.id] || {};
+    for (const [stat, v] of Object.entries(p.abilities)) {
+      const now = grade(v);
+      if (was[stat] && was[stat] !== now) {
+        ups.push({ name: p.name, stat: STAT_NAME[stat], from: was[stat], to: now });
+      }
+    }
+  });
+
+  return { avg, ups };
 }
 
 /** 游標往前一週，需要的話換年 */

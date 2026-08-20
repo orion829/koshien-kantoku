@@ -104,6 +104,21 @@ export const ROSTER_LIMIT = 20;
 export const MIN_PLAYERS = 9;
 
 /**
+ * 還在隊上的人。三年級八月退隊之後就不算在內了
+ * —— 他們還在學校，但不再上場，也不用再練。
+ */
+export const active = (players) => players.filter((p) => !p.retired);
+
+/** 三年級退隊（八月）。他們留在存檔裡，只是不再出現在名單和練習裡 */
+export function retireSeniors(players) {
+  let n = 0;
+  players.forEach((p) => {
+    if (p.gradeYear >= 3 && !p.retired) { p.retired = true; n += 1; }
+  });
+  return n;
+}
+
+/**
  * 升上新學年。三年級畢業離隊，其他人年級 +1。
  * 回傳 { players 留下來的人, graduated 畢業的人 }
  */
@@ -122,7 +137,8 @@ export function addRecruits(players, recruits) {
   );
 }
 
-export function rosterSummary(players) {
+export function rosterSummary(all) {
+  const players = active(all);
   const byGrade = { 1: 0, 2: 0, 3: 0 };
   players.forEach((p) => { byGrade[p.gradeYear]++; });
 
@@ -142,5 +158,6 @@ export function rosterSummary(players) {
     needsMerger: players.length < MIN_PLAYERS,
     overLimit: Math.max(0, players.length - ROSTER_LIMIT),
     best: players.slice().sort((a, b) => overall(b) - overall(a))[0] || null,
+    retired: all.length - players.length,
   };
 }

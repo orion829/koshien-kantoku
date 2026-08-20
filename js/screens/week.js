@@ -36,6 +36,52 @@ function actionButtons(game) {
     <div class="acts">${others.map(btn).join('')}</div>`;
 }
 
+/** 上一週做了什麼、隊伍長了多少。這是玩家最想看到的回饋 */
+function lastResultBox(game) {
+  const l = game.log[game.log.length - 1];
+  if (!l) return '';
+
+  if (l.results) {
+    const rs = l.results.map((r) => `
+      <span class="res res--${r.won ? 'win' : 'lose'}">${r.round} ${r.won ? '勝' : '敗'}</span>`).join('');
+    const lost = l.results.some((r) => !r.won);
+    return `
+      <div class="last last--${lost ? 'lose' : 'win'}">
+        <span class="last__head">上一週：${l.event}</span>
+        <div class="last__row">${rs}</div>
+        ${lost ? '<p class="last__note">被淘汰了。後面的比賽週會變成練習週。</p>' : ''}
+      </div>`;
+  }
+
+  if (l.retired) {
+    return `<div class="last last--plain">
+      <span class="last__head">上一週：${l.event}</span>
+      <p class="last__note">三年級 ${l.retired} 人退隊，已經從名單上移除。</p>
+      ${l.joined ? `<p class="last__note">人數不夠 9 個，
+        校內有 ${l.joined} 個同學來入部（都很弱）。</p>` : ''}
+    </div>`;
+  }
+
+  if (!l.gains) return '';
+
+  const deltas = l.gains.avg.map((g) => `
+    <span class="delta"><i>${g.name}</i><b>+${g.value.toFixed(1)}</b></span>`).join('');
+  const ups = l.gains.ups.slice(0, 6).map((u) => `
+    <li><b>${u.name}</b> ${u.stat}
+      <span class="g g--${u.from}">${u.from}</span> →
+      <span class="g g--${u.to}">${u.to}</span></li>`).join('');
+  const more = l.gains.ups.length > 6
+    ? `<li class="muted">還有 ${l.gains.ups.length - 6} 個人升級</li>` : '';
+
+  return `
+    <div class="last last--train">
+      <span class="last__head">上一週：${l.action}
+        <em>效率 ${pct(l.efficiency)}</em></span>
+      <div class="last__row">${deltas || '<span class="muted">沒什麼變化</span>'}</div>
+      ${ups ? `<ul class="ups">${ups}${more}</ul>` : ''}
+    </div>`;
+}
+
 function logList(game) {
   const items = game.log.slice(-12).reverse().map((l) => {
     if (l.results) {
@@ -100,6 +146,7 @@ export function renderWeek(root, game, onChange) {
       </div>
     </div>
 
+    ${lastResultBox(game)}
     ${w.kind === 'training' ? moraleBox(game) : ''}
     ${body}
 

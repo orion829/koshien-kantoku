@@ -95,7 +95,10 @@ export function buildYear(wins) {
     .forEach(add);
 
   // ── 秋天 ────────────────────────────────────────────
+  // 這一週三年級退隊。他們還在學校（三月才畢業），但不再上場，
+  // 所以名單上要把他們拿掉。
   plain('handover', '三年級退隊 ／ 組新隊伍', '8月底', 'transition');
+  w[w.length - 1].retireSeniors = true;
   plain('handover', '選新隊長 ／ 重排守備位置', '9月初', 'transition');
 
   matchPhase('autumn', '秋季縣大賽', AUTUMN_ROUNDS, '9月底', { alwaysPlayFirst: true }).forEach(add);
