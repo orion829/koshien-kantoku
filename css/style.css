@@ -1019,6 +1019,7 @@ table.ls .ls__name { text-align: left; color: var(--muted); font-weight: 400; wh
 table.ls tr.is-us .ls__name { color: var(--text); font-weight: 500; }
 table.ls .ls__tot { font-weight: 600; color: var(--accent); }
 table.ls .ls__h { color: var(--muted); }
+table.ls .ls__e { color: var(--danger); }
 
 /* ---------- 選手數據表 ---------- */
 
@@ -1405,14 +1406,56 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
   margin-bottom: 8px;
 }
 
-.timeline__pos { font-variant-numeric: tabular-nums; color: var(--text); }
+.timeline__pos { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+
+.timeline__track {
+  position: relative;
+  padding-top: 22px;
+}
 
 .timeline__row {
   display: flex;
   gap: 1px;
-  height: 14px;
+  height: 16px;
   border-radius: 4px;
   overflow: hidden;
+}
+
+.timeline__marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.timeline__flag {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.timeline__arrow {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--accent);
+  margin-top: -1px;
+  animation: tl-bounce 1.1s ease-in-out infinite;
+}
+
+@keyframes tl-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
 }
 
 .tl { display: block; background: var(--line); }
@@ -1425,6 +1468,8 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
   outline-offset: -1px;
   position: relative;
   z-index: 1;
+  filter: brightness(1.35) saturate(1.3);
+  transform: scaleY(1.3);
 }
 
 .timeline__phases {
@@ -1500,3 +1545,107 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 .morale-badge--mid b { color: var(--accent); }
 .morale-badge--bad b { color: var(--danger); }
 .morale-badge--worse b { color: var(--danger); text-decoration: underline wavy; }
+
+/* ---------- 精簡版選手名單（本週畫面內嵌） ---------- */
+
+.roster-mini {
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 4px 14px;
+}
+
+.roster-mini summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.roster-mini summary::-webkit-details-marker { display: none; }
+
+.roster-mini summary::before {
+  content: "▸";
+  color: var(--muted);
+  font-size: 11px;
+  transition: transform .12s;
+}
+
+.roster-mini[open] summary::before { transform: rotate(90deg); }
+
+.mini-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.mini-group__label {
+  flex: 0 0 auto;
+  width: 34px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mini-group__label em {
+  font-style: normal;
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.minis {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 6px 2px 2px;
+  font-size: 11px;
+}
+
+.mini--hurt { border-color: var(--danger); opacity: .65; }
+
+.mini__pos {
+  background: var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.mini__name { color: var(--text); }
+.mini__ovr { font-weight: 700; font-size: 11px; }
+
+@media (max-width: 620px) {
+  .mini-group { flex-direction: column; gap: 3px; }
+  .mini-group__label { width: auto; display: flex; gap: 4px; }
+}
+
+/* ---------- 職棒學長探班 ---------- */
+
+.event--alumni {
+  border-color: var(--green);
+  background: linear-gradient(180deg, rgba(111, 174, 122, .12), var(--surface));
+}
+
+.event--alumni .event__title { color: var(--green); }
+
+.log--alumni .log__body { color: var(--green); }

@@ -33,11 +33,18 @@ export function renderTimeline(game) {
   const weeks = game.schedule[game.cursor.year - 1];
   if (!weeks?.length) return '';
 
+  const idx = game.cursor.week - 1;
+  const weights = weeks.map((w) => Math.max(1, w.games?.length || 1));
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  const before = weights.slice(0, idx).reduce((a, b) => a + b, 0);
+  // 指標放在「現在這一格」的正中間，不是格子邊界
+  const markerPct = ((before + weights[idx] / 2) / totalWeight) * 100;
+
   const cells = weeks.map((w, i) => {
     // w.week 是原始賽程裡的編號，第1年被切過所以對不上游標，用陣列位置比對才準
-    const now = i + 1 === game.cursor.week;
+    const now = i === idx;
     return `<span class="tl tl--${w.kind}${now ? ' is-now' : ''}"
-      style="flex:${Math.max(1, w.games?.length || 1)}"
+      style="flex:${weights[i]}"
       title="${w.month}　${w.event}"></span>`;
   }).join('');
 
@@ -48,9 +55,15 @@ export function renderTimeline(game) {
     <div class="timeline">
       <div class="timeline__head">
         <span>第 ${game.cursor.year} 年　時間軸</span>
-        <span class="timeline__pos">第 ${game.cursor.week} ／ ${weeks.length} 週</span>
+        <span class="timeline__pos">你在這裡：第 ${game.cursor.week} ／ ${weeks.length} 週</span>
       </div>
-      <div class="timeline__row">${cells}</div>
+      <div class="timeline__track">
+        <div class="timeline__marker" style="left:${markerPct}%" aria-hidden="true">
+          <i class="timeline__flag">現在</i>
+          <b class="timeline__arrow">▼</b>
+        </div>
+        <div class="timeline__row">${cells}</div>
+      </div>
       <div class="timeline__phases">${spans}</div>
     </div>`;
 }

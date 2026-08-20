@@ -9,7 +9,9 @@
 
 import { toTrainingWeek } from '../data/calendar.js';
 import { grade } from '../data/abilities.js';
-import { MENUS, menuById, trainTeam, growFromMatch } from './training.js';
+import {
+  MENUS, menuById, trainTeam, growFromMatch, scoutGainFromMatch,
+} from './training.js';
 import { efficiency, moraleLabel, advance, PRACTICE_FLOOR } from './morale.js';
 import { overall, isPitcher, createPlayer } from './player.js';
 import { generateOpponent, buildLineup, playMatch } from './match.js';
@@ -26,11 +28,12 @@ import {
 import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
   pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
+  rollAlumniVisit, resolveAlumniVisit,
 } from './roguelike.js';
 
 export {
   choosePerk, resolveEvent, drawTactics, modifiers, matchMods, resolveTransfer,
-  resolveAwaken, PERKS, perkById, TACTICS, tacticById, eventById,
+  resolveAwaken, resolveAlumniVisit, PERKS, perkById, TACTICS, tacticById, eventById,
 } from './roguelike.js';
 
 // ── 比賽的資格關聯 ──────────────────────────────────────
@@ -203,7 +206,7 @@ export function playWeek(game, rng = Math.random) {
     });
 
     const won = m.winner === 'home';
-    const growth = applyMatchOutcome(game, m, rng, mods);
+    const growth = applyMatchOutcome(game, m, rng, mods, w.phase);
 
     results.push({
       round: w.games[i],
@@ -242,7 +245,7 @@ export function playWeek(game, rng = Math.random) {
  * 一場打完之後：依表現讓球員成長，然後擲骰看有沒有人受傷。
  * 投手投越多球越容易受傷 —— 這就是 500 球規則存在的理由。
  */
-function applyMatchOutcome(game, m, rng, mods = null) {
+function applyMatchOutcome(game, m, rng, mods = null, phase = null) {
   const byId = new Map(active(game.team.players).map((p) => [p.id, p]));
   const bat = new Map(m.home.batters.map((b) => [b.id, b]));
   const pit = new Map(m.home.pitchers.map((p) => [p.id, p]));
@@ -258,6 +261,7 @@ function applyMatchOutcome(game, m, rng, mods = null) {
     const gains = growFromMatch(p, bat.get(id), pit.get(id));
     const total = Object.values(gains).reduce((a, b) => a + b, 0);
     if (total > 0.05) grew.push({ name: p.name, gains, total });
+    scoutGainFromMatch(p, bat.get(id), pit.get(id), phase);
 
     const pitches = pit.get(id)?.pitches || 0;
     if (rng() < matchInjuryChance(p, pitches) * (mods?.matchInjury ?? 1)) {
@@ -284,7 +288,8 @@ export function takeAction(game, actionId, rng = Math.random) {
   const w = currentWeek(game);
   if (!w) return null;
   // 還有沒選的三選一或事件，先擋著
-  if (game.pendingDraft || game.pendingEvent || game.pendingTransfer || game.pendingAwaken) return null;
+  if (game.pendingDraft || game.pendingEvent || game.pendingTransfer
+    || game.pendingAwaken || game.pendingAlumniVisit) return null;
 
   const mods = modifiers(game);
   const boost = game.weekBoost || null;
@@ -339,7 +344,9 @@ export function takeAction(game, actionId, rng = Math.random) {
     game.morale.weeksSinceMatch += 1;
     log.action = '（過場）';
     if (w.retireSeniors) {
-      log.retired = retireSeniors(game.team.players);
+      const { count, retirees } = retireSeniors(game.team.players);
+      log.retired = count;
+      log.drafted = checkDraft(game, retirees, rng);
       log.joined = fillToMinimum(game, rng);
     }
   }
@@ -360,6 +367,38 @@ export function takeAction(game, actionId, rng = Math.random) {
 
   step(game, rng);
   return log;
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * 職棒選秀的門檻。注目度低於這個數字完全沒機會；
+ * 到 100 的話大約 95% 會被選走，不是保證，選秀本來就有意外。
+ */
+const DRAFT_THRESHOLD = 40;
+
+/**
+ * 三年級退隊時檢查每個人的職棒球探注目度，夠高的話可能被選走。
+ * 選走的人記在 game.proAlumni 裡，之後練習週會有機率讓他們回來幫忙。
+ */
+function checkDraft(game, retirees, rng) {
+  const drafted = [];
+  retirees.forEach((p) => {
+    const chance = clamp((p.scoutAttention - DRAFT_THRESHOLD) / 60, 0, 0.95);
+    if (chance <= 0 || rng() >= chance) return;
+    const rec = {
+      id: p.id,
+      name: p.name,
+      position: p.position,
+      talent: p.talent,
+      overall: overall(p),
+      year: game.cursor.year,
+      attention: Math.round(p.scoutAttention),
+    };
+    game.proAlumni = [...(game.proAlumni || []), rec];
+    drafted.push(rec);
+  });
+  return drafted;
 }
 
 /**
@@ -458,14 +497,19 @@ function step(game, rng) {
     if (drawn.length) game.pendingDraft = drawn;
   }
   if (nw.kind === 'training') {
-    // 一週最多跳一張卡：轉學生優先，再來是覺醒，最後才是一般事件
+    // 一週最多跳一張卡：轉學生優先，再來是學長探班、覺醒，最後才是一般事件
     if (game.transferWeekIndex === game.cursor.week - 1 && !game.pendingTransfer) {
       game.pendingTransfer = rollTransferStudent(game, rng);
       game.transferWeekIndex = -1;
-    } else if (!game.pendingAwaken) {
-      const awaken = rollAwaken(game, rng);
-      if (awaken) game.pendingAwaken = awaken;
-      else if (!game.pendingEvent) game.pendingEvent = rollEvent(game, rng);
+    } else if (!game.pendingAlumniVisit) {
+      const alum = rollAlumniVisit(game, rng);
+      if (alum) {
+        game.pendingAlumniVisit = alum;
+      } else if (!game.pendingAwaken) {
+        const awaken = rollAwaken(game, rng);
+        if (awaken) game.pendingAwaken = awaken;
+        else if (!game.pendingEvent) game.pendingEvent = rollEvent(game, rng);
+      }
     }
   }
   if (nw.kind === 'match') {

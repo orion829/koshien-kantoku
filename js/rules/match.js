@@ -129,6 +129,22 @@ function defenceRating(order) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
+/**
+ * 臂力：野手（投手除外）的臂力平均，一樣算適性折扣。
+ * 用來決定跑者敢不敢多跑一個壘、長打會不會被外野手擋下來——
+ * 這是臂力唯一真正影響比賽的地方，選守備位置只是次要的用途。
+ */
+function armRating(order) {
+  const vals = order
+    .filter(({ position }) => position !== 'P')
+    .map(({ player, position }) => {
+      const g = player.aptitudes?.[position] || 'A';
+      const pen = { S: 1, A: 1, B: 0.92, C: 0.84, D: 0.76, E: 0.68, F: 0.6, G: 0.5 }[g];
+      return player.abilities.arm * pen;
+    });
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
 const OUT = 'out';
 
 /**
@@ -184,8 +200,10 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   if (has(pitcher, 'heavy')) hr -= 0.012;
   if (has(pitcher, 'light')) hr += 0.02;
   if (rng() < clamp(hr, 0.004, 0.22)) return { kind: 'hr', pitches: p };
+  // 外野手臂力夠強的話，長打會被擋下來變成一壘安打
   const extra = clamp(
-    0.055 + (power - 45) * 0.0016 + (b.speed + om.speed - 45) * 0.0012 + om.extraBase,
+    0.055 + (power - 45) * 0.0016 + (b.speed + om.speed - 45) * 0.0012 + om.extraBase
+      - (ctx.defArm - 50) * 0.0010,
     0.02, 0.3,
   );
   if (rng() < extra) {
@@ -226,6 +244,8 @@ export function playMatch(home, away, rng = Math.random, { maxInnings = 12, merc
     pitcher: t.starter,
     bullpen: [...t.bullpen],
     defence: defenceRating(t.order),
+    arm: armRating(t.order),
+    errors: 0,
     mods: t.mods || baseMods(),
     bat: new Map(t.order.map(({ player, position }) => [player.id, newBatLine(player, position)])),
     pit: new Map([[t.starter.id, newPitLine(t.starter)]]),
@@ -303,6 +323,7 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
       defForm: def.form,
       off: off.mods,
       def: def.mods,
+      defArm: def.arm,
       inning,
       trailing: off.total < def.total,
     };
@@ -353,12 +374,16 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
       }
       case 'error':
         bl.ab += 1;
+        def.errors += 1;
         advance(1, 0);
         break;
-      case 'single':
+      case 'single': {
         bl.ab += 1; bl.h += 1; pit.h += 1;
-        advance(rng() < 0.42 + off.mods.advance ? 2 : 1, 0);
+        // 防守方外野臂力強的話，跑者比較不敢多跑一個壘
+        const takeExtra = clamp(0.42 + off.mods.advance - (def.arm - 50) * 0.0018, 0.15, 0.7);
+        advance(rng() < takeExtra ? 2 : 1, 0);
         break;
+      }
       case 'double': bl.ab += 1; bl.h += 1; pit.h += 1; advance(2, 1); break;
       case 'triple': bl.ab += 1; bl.h += 1; pit.h += 1; advance(3, 2); break;
       case 'hr': {
@@ -395,6 +420,7 @@ function summarise(s, team) {
     total: s.total,
     runs: s.runs,
     hits: [...s.bat.values()].reduce((n, b) => n + b.h, 0),
+    errors: s.errors,
     batters: [...s.bat.values()],
     pitchers: [...s.pit.values()],
     players: team.order.map((o) => o.player),

@@ -1,6 +1,6 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成六種：
+// 這個檔案放「每一局都不一樣」的東西。分成七種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
 //   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
@@ -9,6 +9,7 @@
 //   5. 轉學生 一年一定會遇到一個，隨機年級，極低機率是超神等級
 //   6. 能力覺醒 能力練過門檻時可能跳卡片，賭贏學會新能力，
 //             賭輸能力會掉或換來壞習慣
+//   7. 學長探班 打得夠好被職棒選走的畢業生，偶爾回來幫學校一把
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
@@ -917,6 +918,49 @@ export function resolveAwaken(game, choice, rng = Math.random) {
   const bad = badPool[Math.floor(rng() * badPool.length)];
   p.skills.push(bad.id);
   return log('fail', `賭輸了，還練壞了習慣——${p.name} 多了一個「${bad.name}」。`);
+}
+
+// ── 7. 學長回來幫忙（職棒選手探班）──────────────────────
+//
+// 打得夠好的三年級退隊時可能被職棒選走（見 game.js 的 checkDraft）。
+// 選走之後，偶爾會在練習週跳出來探班，帶一點實質的幫助回來——
+// 這是純加分的事件，沒有賭輸的風險，算是長期栽培出好選手的回報。
+
+/** 每個練習週跳出探班事件的機率（前提是至少有一個人被選進職棒） */
+export const ALUMNI_VISIT_CHANCE = 0.08;
+
+/** 這一週要不要跳探班事件。回傳被選進職棒的其中一人，或 null */
+export function rollAlumniVisit(game, rng = Math.random) {
+  const pool = game.proAlumni || [];
+  if (!pool.length) return null;
+  if (rng() >= ALUMNI_VISIT_CHANCE) return null;
+  return pickOne(pool, rng);
+}
+
+/** 請學長指導，或請他辦簽名會 */
+export function resolveAlumniVisit(game, choice, rng = Math.random) {
+  const a = game.pendingAlumniVisit;
+  if (!a) return null;
+  game.pendingAlumniVisit = null;
+
+  let note;
+  if (choice === 'signing') {
+    game.extraFame = (game.extraFame || 0) + 6;
+    note = `${a.name} 學長回來辦簽名會，地方報紙又報導了一次學校的棒球隊。`;
+  } else {
+    const role = a.position === 'P' ? 'pitcher' : 'batter';
+    const stats = role === 'pitcher' ? PITCHER_STATS : BATTER_STATS;
+    const stat = stats[Math.floor(rng() * stats.length)];
+    const n = bump(canPlay(game), stat.id, 4);
+    note = `${a.name} 學長回來指導了一下午。${n} 個人的${stat.name}進步了。`;
+  }
+
+  return {
+    week: game.cursor.abs,
+    kind: 'alumni',
+    event: '職棒學長回來探班',
+    alumniResult: { name: a.name, note },
+  };
 }
 
 export { clamp };

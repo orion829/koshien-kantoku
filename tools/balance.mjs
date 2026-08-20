@@ -337,6 +337,7 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
   let awakenSeenN = 0;
   let awakenBet = 0;
   let awakenWin = 0;
+  let alumniVisits = 0;
   const strengths = [];
 
   for (let n = 0; n < 40; n += 1) {
@@ -352,6 +353,11 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
           transfers += 1;
           if (g.pendingTransfer.superstar) superstars += 1;
           RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet');
+          continue;
+        }
+        if (g.pendingAlumniVisit) {
+          alumniVisits += 1;
+          RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing');
           continue;
         }
         if (g.pendingAwaken) {
@@ -385,6 +391,7 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
   console.log(`  每局覺醒卡 ${(awakenSeenN / 40).toFixed(1)} 次　`
     + `賭下去 ${awakenBet}/${awakenSeenN}　賭贏 ${awakenWin}/${awakenBet}`
     + `（機率設計上大約 0.4〜0.6）`);
+  console.log(`  每局學長探班 ${(alumniVisits / 40).toFixed(2)} 次（3 年局本來就少，正常）`);
   console.log(`  亂玩的最終戰力 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
     + `（認真玩要明顯更高）`);
 }
@@ -409,6 +416,10 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
         minRoster = Math.min(minRoster, R.active(g.team.players).length);
         if (g.pendingDraft?.length) { RG.choosePerk(g, pick(g.pendingDraft)); continue; }
         if (g.pendingTransfer) { RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet'); continue; }
+        if (g.pendingAlumniVisit) {
+          RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing');
+          continue;
+        }
         if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
         if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
         if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }

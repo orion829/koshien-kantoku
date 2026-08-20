@@ -173,11 +173,11 @@ export const active = (players) => players.filter((p) => !p.retired);
 
 /** 三年級退隊（八月）。他們留在存檔裡，只是不再出現在名單和練習裡 */
 export function retireSeniors(players) {
-  let n = 0;
+  const retirees = [];
   players.forEach((p) => {
-    if (p.gradeYear >= 3 && !p.retired) { p.retired = true; n += 1; }
+    if (p.gradeYear >= 3 && !p.retired) { p.retired = true; retirees.push(p); }
   });
-  return n;
+  return { count: retirees.length, retirees };
 }
 
 /**

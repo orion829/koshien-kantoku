@@ -164,6 +164,8 @@ export function createPlayer({
     potential,
     aptitudes: makeAptitudes(main, rng),
     skills: makeSkills(main, talent, abilities, rng),
+    // 職棒球探注目度：0〜100，打出好表現會累積，畢業時夠高就可能被選走
+    scoutAttention: 0,
   };
 }
 

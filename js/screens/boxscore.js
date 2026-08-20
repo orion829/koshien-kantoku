@@ -28,11 +28,13 @@ function lineScore(r) {
     }).join('');
     return `<tr class="${isUs ? 'is-us' : ''}">
       <th class="ls__name">${name}</th>${cells}
-      <td class="ls__tot">${t.total}</td><td class="ls__h">${t.hits}</td></tr>`;
+      <td class="ls__tot">${t.total}</td><td class="ls__h">${t.hits}</td>
+      <td class="ls__e">${t.errors ?? 0}</td></tr>`;
   };
   return `
     <table class="ls">
-      <thead><tr><th></th>${head}<th class="ls__tot">R</th><th class="ls__h">H</th></tr></thead>
+      <thead><tr><th></th>${head}<th class="ls__tot">R</th><th class="ls__h">H</th>
+        <th class="ls__e">E</th></tr></thead>
       <tbody>
         ${row(them, them.name, false)}
         ${row(us, us.name, true)}

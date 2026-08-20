@@ -4,12 +4,14 @@ import { overall, overallGrade } from '../rules/player.js';
 import { active } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
 import { weekGames, bindGameCards } from './boxscore.js';
+import { downloadSummary } from './summary.js';
 import { positionById } from '../data/abilities.js';
 import {
   fameOf, candidateHint, growthName,
 } from '../rules/scouting.js';
 import {
   perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer, resolveAwaken,
+  resolveAlumniVisit,
 } from '../rules/roguelike.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -25,6 +27,43 @@ function moraleBox(game) {
       <span class="morale__eff">練習效率 ${pct(eff)}</span>
       <span class="morale__hint">距離上一場正式比賽 ${c} 週</span>
     </div>`;
+}
+
+/**
+ * 精簡版選手名單：不用切分頁就看得到，預設收起來，
+ * 一個人只佔一小格（位置＋姓名＋整體評價），點開才會展開。
+ * 完整版（能力細節、適性、特殊能力）還是要去「選手名單」分頁看。
+ */
+function compactRoster(game) {
+  const players = active(game.team.players);
+  if (!players.length) return '';
+
+  const chip = (p) => {
+    const pos = positionById(p.position)?.short || '';
+    const hurt = isInjured(p);
+    return `
+      <li class="mini${hurt ? ' mini--hurt' : ''}" title="${p.name}${hurt ? '（養傷中）' : ''}">
+        <span class="mini__pos">${pos}</span>
+        <span class="mini__name">${p.name}</span>
+        <span class="mini__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
+      </li>`;
+  };
+
+  const groups = [3, 2, 1].map((gy) => {
+    const list = players.filter((p) => p.gradeYear === gy);
+    if (!list.length) return '';
+    return `
+      <div class="mini-group">
+        <span class="mini-group__label">${gy}年<em>${list.length}</em></span>
+        <ul class="minis">${list.map(chip).join('')}</ul>
+      </div>`;
+  }).join('');
+
+  return `
+    <details class="roster-mini">
+      <summary>選手名單<span class="hint">（${players.length} 人，點開看全部）</span></summary>
+      ${groups}
+    </details>`;
 }
 
 /** 已經拿到的傳統 */
@@ -122,6 +161,31 @@ function awakenPanel(game) {
         <button type="button" class="card-pick card-pick--opt" data-act="awaken:pass">
           <b class="card-pick__name">先算了</b>
           <span class="card-pick__desc">不冒險，這個機會以後可能還會再來</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+/** 學長探班：被職棒選走的畢業生偶爾回來幫忙，純加分沒有風險 */
+function alumniPanel(game) {
+  const a = game.pendingAlumniVisit;
+  if (!a) return '';
+  const pos = positionById(a.position)?.short || '';
+  return `
+    <div class="event event--alumni">
+      <h3 class="event__title">職棒學長回來探班了</h3>
+      <p class="event__text">
+        <b>${a.name}</b>（${pos}・第 ${a.year} 年畢業）現在在職棒打拚，
+        今天特地回母校看看學弟。
+      </p>
+      <div class="picks picks--two">
+        <button type="button" class="card-pick card-pick--opt" data-act="alumni:coach">
+          <b class="card-pick__name">請他指導</b>
+          <span class="card-pick__desc">跟他同守備類型的能力小漲一波</span>
+        </button>
+        <button type="button" class="card-pick card-pick--opt" data-act="alumni:signing">
+          <b class="card-pick__name">辦簽名會</b>
+          <span class="card-pick__desc">地方報紙報導，注目度 +6</span>
         </button>
       </div>
     </div>`;
@@ -276,11 +340,25 @@ function lastResultBox(game) {
   }
 
   if (l.retired) {
-    return `<div class="last last--plain">
+    const drafted = l.drafted || [];
+    return `<div class="last${drafted.length ? ' last--win' : ' last--plain'}">
       <span class="last__head">上一週：${l.event}</span>
       <p class="last__note">三年級 ${l.retired} 人退隊，已經從名單上移除。</p>
+      ${drafted.length ? `<h4 class="bs__h">職棒選秀會上被選走了！</h4>
+        <ul class="grew">${drafted.map((d) => `
+          <li><b>${d.name}</b> ${positionById(d.position)?.short || ''}
+            <span class="cand__talent">${'★'.repeat(d.talent)}${'☆'.repeat(5 - d.talent)}</span>
+            <span class="muted">（注目度 ${d.attention}）</span></li>`).join('')}</ul>` : ''}
       ${l.joined ? `<p class="last__note">人數不夠 9 個，
         校內有 ${l.joined} 個同學來入部（都很弱）。</p>` : ''}
+    </div>`;
+  }
+
+  if (l.alumniResult) {
+    const a = l.alumniResult;
+    return `<div class="last last--win">
+      <span class="last__head">${l.event}：${a.name}</span>
+      <p class="last__note">${a.note}</p>
     </div>`;
   }
 
@@ -347,6 +425,11 @@ function logList(game) {
         <span class="log__body">${l.event}（${l.awakenResult.name}）
         → <b>${{ success: '學會了', fail: '賭輸了', pass: '先算了' }[l.awakenResult.outcome]}</b></span></li>`;
     }
+    if (l.alumniResult) {
+      return `<li class="log log--alumni"><span class="log__wk">#${l.week}</span>
+        <span class="log__body">${l.event}
+        → <b>${l.alumniResult.name}</b></span></li>`;
+    }
     const extra = l.trained
       ? `<span class="log__eff">效率 ${pct(l.efficiency)}</span>` : '';
     return `<li class="log log--${l.kind}"><span class="log__wk">#${l.week}</span>
@@ -372,7 +455,11 @@ export function renderWeek(root, game, onChange) {
           <li><b class="g g--${overallGrade(best)}">${overallGrade(best)}</b><span>最強球員</span></li>
         </ul>
         ${resultTable(game)}
+        <button type="button" class="btn btn--primary btn--wide" data-summary="download">
+          下載成績單（.svg 圖檔）
+        </button>
       </div>`;
+    bindSummaryButtons(root, game);
     return;
   }
 
@@ -395,19 +482,26 @@ export function renderWeek(root, game, onChange) {
        </div>`
     : w.kind === 'training'
       ? (game.pendingTransfer ? transferPanel(game)
-        : game.pendingAwaken ? awakenPanel(game)
-          : game.pendingEvent ? eventPanel(game) : actionButtons(game))
+        : game.pendingAlumniVisit ? alumniPanel(game)
+          : game.pendingAwaken ? awakenPanel(game)
+            : game.pendingEvent ? eventPanel(game) : actionButtons(game))
       : `<div class="acts acts--match">
            <button type="button" class="act act--go" data-act="__next">
              <b>下一步</b><span>${w.event}</span>
            </button>
-         </div>`;
+         </div>
+         ${w.retireSeniors ? `
+           <button type="button" class="btn btn--wide" data-summary="download">
+             這一年結束了，要不要下載成績單？
+           </button>` : ''}`;
 
   root.innerHTML = `
     ${weekBar(game, w)}
+    ${compactRoster(game)}
     ${perkStrip(game)}
     ${lastResultBox(game)}
-    ${w.kind === 'training' && !game.pendingEvent && !game.pendingTransfer && !game.pendingAwaken ? moraleBox(game) : ''}
+    ${w.kind === 'training' && !game.pendingEvent && !game.pendingTransfer
+    && !game.pendingAwaken && !game.pendingAlumniVisit ? moraleBox(game) : ''}
     ${body}
 
     ${injuryList(game)}
@@ -417,6 +511,14 @@ export function renderWeek(root, game, onChange) {
 
   bindGameCards(root);
   bindActions(root, game, onChange);
+  bindSummaryButtons(root, game);
+}
+
+/** 下載成績單的按鈕。純粹存檔案，不會推進遊戲，所以不走 takeAction */
+function bindSummaryButtons(root, game) {
+  root.querySelectorAll('[data-summary="download"]').forEach((b) => {
+    b.addEventListener('click', () => downloadSummary(game));
+  });
 }
 
 function weekBar(game, w) {
@@ -464,6 +566,11 @@ function bindActions(root, game, onChange) {
       }
       if (id.startsWith('awaken:')) {
         push(resolveAwaken(game, id.slice(7)));
+        onChange();
+        return;
+      }
+      if (id.startsWith('alumni:')) {
+        push(resolveAlumniVisit(game, id.slice(7)));
         onChange();
         return;
       }

@@ -95,7 +95,7 @@ js/
     roster.js          你接手的那支隊伍
     training.js        練習項目與成長
     game.js            遊戲主迴圈
-    roguelike.js       傳統、突發事件、作戰、對手特色
+    roguelike.js       傳統、突發事件、作戰、對手特色、轉學生、能力覺醒、學長探班
     match.js           比賽模擬
     injury.js          受傷與養傷
     scouting.js        招生
@@ -107,6 +107,8 @@ js/
     radar.js           隊伍能力雷達圖
     roster.js          選手名單
     schedule.js        賽程表
+    timeline.js        主畫面的一年時間線
+    summary.js         成績單（存成 .svg 圖檔）
 tools/
   balance.mjs          平衡驗證
 ```

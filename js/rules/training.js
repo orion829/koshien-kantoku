@@ -137,6 +137,29 @@ export function growFromMatch(player, bat, pit) {
   return gains;
 }
 
+/**
+ * 這一場比賽表現，讓職棒球探的注目度長了多少。
+ * 舞台越大（甲子園 > 縣大賽 > 地區大賽）看的人越多，長得越快——
+ * 跟真實的選秀邏輯一樣，決賽圈打出來的表現含金量比平常高。
+ */
+export const SCOUT_STAGE_WEIGHT = {
+  regional: 1, koshien: 3, autumn: 0.8, autumnArea: 1.3, senbatsu: 2.3,
+};
+
+export function scoutGainFromMatch(player, bat, pit, phase) {
+  const weight = SCOUT_STAGE_WEIGHT[phase] ?? 1;
+  let raw = 0;
+  if (bat) raw += bat.h * 1.4 + bat.hr * 4 + bat.rbi * 0.8;
+  if (pit) {
+    const innings = pit.outs / 3;
+    raw += innings * 1.1 + pit.k * 0.7 - pit.bb * 0.4 - pit.r * 0.9;
+  }
+  const gain = Math.max(0, raw) * weight * 0.4;
+  if (gain <= 0) return 0;
+  player.scoutAttention = Math.min(100, (player.scoutAttention || 0) + gain);
+  return gain;
+}
+
 /** 全隊練一週 */
 export function trainTeam(players, menuId, efficiency = 1, mods = null) {
   const menu = menuById(menuId);
