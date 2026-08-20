@@ -509,7 +509,7 @@ dl.brief dd { margin: 0; font-variant-numeric: tabular-nums; }
 
 .player__head {
   display: grid;
-  grid-template-columns: 34px 26px 1fr auto auto;
+  grid-template-columns: 34px 26px 1fr auto auto auto;
   gap: 10px;
   align-items: baseline;
   width: 100%;
@@ -630,3 +630,53 @@ table.abil td.num i { font-style: normal; }
 .skill-line span { color: var(--muted); }
 .skill-line--good b { color: var(--blue); }
 .skill-line--bad b { color: var(--danger); }
+
+/* ---------- 成長期 ---------- */
+
+.growth {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.growth--early { color: var(--accent); border-color: var(--accent); }
+.growth--late { color: var(--blue); border-color: var(--blue); }
+
+.growth-line {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- 能力進度條 ---------- */
+
+td.barcell { width: 62px; padding-right: 8px; }
+
+.bar {
+  position: relative;
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.bar u,
+.bar i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* u = 上限（淡），i = 現在（實） */
+.bar u { background: var(--line-strong); }
+.bar i { background: var(--accent); z-index: 1; }
+
+table.abil td.num em { font-style: normal; opacity: .55; }

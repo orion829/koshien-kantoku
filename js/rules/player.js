@@ -5,7 +5,7 @@
 
 import {
   MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, POSITION_NEIGHBOURS,
-  APTITUDE_PENALTY, GRADES, grade, velocityKmh, skillsFor,
+  APTITUDE_PENALTY, GRADES, grade, velocityKmh, skillsFor, rollGrowthType,
 } from '../data/abilities.js';
 import { randomPersonName } from '../data/names.js';
 
@@ -100,7 +100,8 @@ function makeSkills(main, talent, abilities, rng) {
  *   position 主守備位置，不給就隨機
  */
 export function createPlayer({
-  gradeYear = 1, talent = 3, position = null, name = null, rng = Math.random,
+  gradeYear = 1, talent = 3, position = null, name = null,
+  growthType = null, rng = Math.random,
 } = {}) {
   const main = position || pick(POSITIONS, rng).id;
   const profile = POSITION_PROFILE[main] || {};
@@ -118,15 +119,29 @@ export function createPlayer({
   const abilities = {};
   for (const s of [...BATTER_STATS, ...PITCHER_STATS]) abilities[s.id] = roll(s.id);
 
+  // 每個人有自己的天花板。沒有這個的話，練久了所有人都會頂到 90，
+  // 天賦和成長期就完全沒有意義了。
+  const stage = growthType || rollGrowthType(rng);
+  // 早熟的人上限比較低，晚成的人上限比較高 —— 這就是「賭他」的地方
+  const capMult = { early: 0.90, normal: 1.0, late: 1.12 }[stage];
+  const potential = {};
+  for (const s of [...BATTER_STATS, ...PITCHER_STATS]) {
+    const off = main !== 'P' && pitcherStatIds.includes(s.id) ? -16 : 0;
+    const raw = (talentBase(talent) + 30 + (profile[s.id] || 0) + off + gauss(rng) * 8) * capMult;
+    potential[s.id] = clamp(Math.round(raw), abilities[s.id], MAX_ABILITY);
+  }
+
   return {
     id: `p${Math.floor(rng() * 1e9).toString(36)}`,
     name: name || randomPersonName(rng),
     gradeYear,
     talent,
+    growthType: stage,
     position: main,
     throws: rng() < 0.25 ? 'L' : 'R',
     bats: rng() < 0.35 ? 'L' : 'R',
     abilities,
+    potential,
     aptitudes: makeAptitudes(main, rng),
     skills: makeSkills(main, talent, abilities, rng),
   };

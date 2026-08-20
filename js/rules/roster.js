@@ -103,6 +103,25 @@ export const ROSTER_LIMIT = 20;
 /** 人數不足要組聯合隊伍的門檻（照真實規則） */
 export const MIN_PLAYERS = 9;
 
+/**
+ * 升上新學年。三年級畢業離隊，其他人年級 +1。
+ * 回傳 { players 留下來的人, graduated 畢業的人 }
+ */
+export function advanceYear(players) {
+  const graduated = players.filter((p) => p.gradeYear >= 3);
+  const staying = players
+    .filter((p) => p.gradeYear < 3)
+    .map((p) => ({ ...p, gradeYear: p.gradeYear + 1 }));
+  return { players: staying, graduated };
+}
+
+/** 新生入隊 */
+export function addRecruits(players, recruits) {
+  return [...players, ...recruits].sort(
+    (a, b) => b.gradeYear - a.gradeYear || overall(b) - overall(a),
+  );
+}
+
 export function rosterSummary(players) {
   const byGrade = { 1: 0, 2: 0, 3: 0 };
   players.forEach((p) => { byGrade[p.gradeYear]++; });

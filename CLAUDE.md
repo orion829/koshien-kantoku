@@ -93,11 +93,14 @@ js/
     morale.js          士氣與練習效率
     player.js          球員的資料模型
     roster.js          你接手的那支隊伍
+    training.js        練習項目與成長
   screens/
     setup.js           開始畫面
     team.js            主畫面（分頁）
     roster.js          選手名單
     schedule.js        賽程表
+tools/
+  balance.mjs          平衡驗證
 ```
 
 ### 能力等級的說法
@@ -108,7 +111,7 @@ js/
 ## 五、平衡規則
 
 改動任何會影響平衡的東西時，要用程式驗證，不要用猜的。
-`js/rules/morale.js` 裡的 `simulate()` 就是為了這件事。
+跑 `node tools/balance.mjs`，裡面每一段都寫了目標值，對不上就是壞了。
 
 目前已知的平衡目標：**贏球的好處要能抵過輸球多拿到的練習時間。**
 現在故意輸球比較強，因為贏球的獎勵（招生品質、大賽經驗）還沒做。

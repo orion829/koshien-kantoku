@@ -87,6 +87,24 @@ export const POSITION_NEIGHBOURS = {
   RF: ['LF', 'CF', '1B'],
 };
 
+// ── 成長期 ──────────────────────────────────────────────
+// 實況野球叫「早熟／普通／晩成」。
+// 晚成的人一開始看起來很爛，但三年級會爆發 —— 敢不敢賭他？
+
+export const GROWTH_TYPES = {
+  early: { id: 'early', name: '早熟', desc: '一年級長很快，三年級就停了', byYear: [1.7, 1.0, 0.45] },
+  normal: { id: 'normal', name: '普通', desc: '三年平均地長', byYear: [1.0, 1.0, 1.0] },
+  late: { id: 'late', name: '晚成', desc: '一開始很慢，三年級才爆發', byYear: [0.45, 1.0, 1.7] },
+};
+
+/** 早熟 25%、普通 50%、晚成 25% */
+export function rollGrowthType(rng = Math.random) {
+  const r = rng();
+  if (r < 0.25) return 'early';
+  if (r < 0.75) return 'normal';
+  return 'late';
+}
+
 // ── 特殊能力 ────────────────────────────────────────────
 // 初版照實況野球搬過來，先做成「有」或「沒有」，不分等級。
 // role: 'pitcher' 投手用 | 'batter' 打者用

@@ -1,5 +1,5 @@
 import {
-  BATTER_STATS, PITCHER_STATS, POSITIONS, positionById, grade, skillById,
+  BATTER_STATS, PITCHER_STATS, POSITIONS, positionById, grade, skillById, GROWTH_TYPES,
 } from '../data/abilities.js';
 import {
   overall, overallGrade, isPitcher, playerVelocity, fieldingAt,
@@ -24,12 +24,15 @@ function playerRow(p) {
     .map((s) => `<span class="skill skill--${s.good ? 'good' : 'bad'}">${s.name}</span>`)
     .join('');
 
+  const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
+
   return `
     <li class="player" data-player="${p.id}">
       <button type="button" class="player__head">
         <span class="player__year y${p.gradeYear}">${gradeYearLabel(p.gradeYear)}</span>
         <span class="player__pos">${pos.short}</span>
         <span class="player__name">${p.name}</span>
+        <span class="growth growth--${gt.id}">${gt.name}</span>
         <span class="player__talent">${stars(p.talent)}</span>
         <span class="player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
       </button>
@@ -42,11 +45,22 @@ function playerRow(p) {
 /** 展開後的完整資料 */
 function playerDetail(p) {
   const row = (list) => list.map((s) => {
-    const v = p.abilities[s.id];
+    const v = Math.round(p.abilities[s.id]);
+    const cap = Math.round(p.potential?.[s.id] ?? v);
     const g = grade(v);
     const extra = s.id === 'velocity' ? ` <i>${playerVelocity(p)} km/h</i>` : '';
-    return `<tr><td>${s.name}</td><td class="g g--${g}">${g}</td><td class="num">${v}${extra}</td></tr>`;
+    // 進度條：現在練到哪、上限在哪
+    const bar = `<span class="bar"><i style="width:${Math.min(100, v)}%"></i>
+      <u style="width:${Math.min(100, cap)}%"></u></span>`;
+    return `<tr>
+      <td>${s.name}</td>
+      <td class="g g--${g}">${g}</td>
+      <td class="barcell">${bar}</td>
+      <td class="num">${v}<em>/${cap}</em>${extra}</td>
+    </tr>`;
   }).join('');
+
+  const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
 
   const apt = POSITIONS.map((pos) => {
     const a = p.aptitudes[pos.id];
@@ -61,13 +75,17 @@ function playerDetail(p) {
   }).join('');
 
   return `
+    <p class="growth-line">
+      成長期 <span class="growth growth--${gt.id}">${gt.name}</span>
+      <span class="muted">${gt.desc}</span>
+    </p>
     <div class="detail__grid">
       <div>
-        <h4>打者能力</h4>
+        <h4>打者能力<span class="hint">（現在／上限）</span></h4>
         <table class="abil">${row(BATTER_STATS)}</table>
       </div>
       <div>
-        <h4>投手能力</h4>
+        <h4>投手能力<span class="hint">（現在／上限）</span></h4>
         <table class="abil">${row(PITCHER_STATS)}</table>
       </div>
     </div>
