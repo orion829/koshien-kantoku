@@ -1,7 +1,9 @@
 import { currentWeek, availableActions, takeAction, isRunOver, teamStrength } from '../rules/game.js';
 import { moraleLabel, efficiency } from '../rules/morale.js';
-import { grade } from '../data/abilities.js';
 import { overall, overallGrade } from '../rules/player.js';
+import { active } from '../rules/roster.js';
+import { isInjured } from '../rules/injury.js';
+import { weekGames, bindGameCards } from './boxscore.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 
@@ -42,13 +44,11 @@ function lastResultBox(game) {
   if (!l) return '';
 
   if (l.results) {
-    const rs = l.results.map((r) => `
-      <span class="res res--${r.won ? 'win' : 'lose'}">${r.round} ${r.won ? '勝' : '敗'}</span>`).join('');
     const lost = l.results.some((r) => !r.won);
     return `
       <div class="last last--${lost ? 'lose' : 'win'}">
         <span class="last__head">上一週：${l.event}</span>
-        <div class="last__row">${rs}</div>
+        ${weekGames(l.results)}
         ${lost ? '<p class="last__note">被淘汰了。後面的比賽週會變成練習週。</p>' : ''}
       </div>`;
   }
@@ -79,7 +79,26 @@ function lastResultBox(game) {
         <em>效率 ${pct(l.efficiency)}</em></span>
       <div class="last__row">${deltas || '<span class="muted">沒什麼變化</span>'}</div>
       ${ups ? `<ul class="ups">${ups}${more}</ul>` : ''}
+      ${(l.injured || []).length ? `<ul class="injs">${l.injured.map((x) => `
+        <li class="inj inj--${x.severity}"><b>${x.name}</b> 練習時${x.label}（${x.cause}）
+          休養 ${x.weeks} 週、能力 −${x.drop}
+          ${x.permanent ? `<span class="inj__perm">上限永久 −${x.permanent}</span>` : ''}
+        </li>`).join('')}</ul>` : ''}
     </div>`;
+}
+
+/** 現在有誰在養傷 */
+function injuryList(game) {
+  const hurt = active(game.team.players).filter(isInjured)
+    .sort((a, b) => b.injury.weeks - a.injury.weeks);
+  if (!hurt.length) return '';
+  const items = hurt.map((p) => `
+    <li class="inj inj--${p.injury.severity}">
+      <b>${p.name}</b> ${p.injury.name}（${p.injury.cause}）
+      <span class="inj__weeks">還要 ${p.injury.weeks} 週</span>
+    </li>`).join('');
+  return `<h3 class="sec">養傷中<span class="hint">（不能上場也不會練習）</span></h3>
+    <ul class="injs">${items}</ul>`;
 }
 
 function logList(game) {
@@ -150,8 +169,12 @@ export function renderWeek(root, game, onChange) {
     ${w.kind === 'training' ? moraleBox(game) : ''}
     ${body}
 
+    ${injuryList(game)}
+
     <h3 class="sec">最近發生的事</h3>
     ${logList(game)}`;
+
+  bindGameCards(root);
 
   root.querySelectorAll('[data-act]').forEach((b) => {
     b.addEventListener('click', () => {

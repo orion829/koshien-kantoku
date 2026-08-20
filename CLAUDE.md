@@ -95,10 +95,14 @@ js/
     roster.js          你接手的那支隊伍
     training.js        練習項目與成長
     game.js            遊戲主迴圈
+    match.js           比賽模擬
+    injury.js          受傷與養傷
   screens/
     setup.js           開始畫面
     team.js            主畫面（分頁）
     week.js            本週要做什麼
+    boxscore.js        比賽的詳細結果
+    radar.js           隊伍能力雷達圖
     roster.js          選手名單
     schedule.js        賽程表
 tools/
@@ -116,4 +120,6 @@ tools/
 跑 `node tools/balance.mjs`，裡面每一段都寫了目標值，對不上就是壞了。
 
 目前已知的平衡目標：**贏球的好處要能抵過輸球多拿到的練習時間。**
-現在故意輸球比較強，因為贏球的獎勵（招生品質、大賽經驗）還沒做。
+
+已經做的：士氣（只有正式比賽能歸零）、比賽表現換成長（贏越多打越多長越多）。
+還缺的：招生品質隨戰績提升。

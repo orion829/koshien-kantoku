@@ -93,6 +93,47 @@ export function trainPlayer(player, menu, efficiency = 1) {
   return gains;
 }
 
+/**
+ * 比賽表現換成的成長。
+ * 打得好就會進步 —— 這是打比賽的回報，也是「贏球比較好」的理由之一。
+ * 一個比賽週（三場）的成長大約等於一個練習週。
+ * 投手的係數要壓低很多，因為完投九局會把每一項都累加，很容易爆掉。
+ * 這也是「贏球比較好」的重要理由：贏越多場，打越多場，長越多。
+ */
+export function growFromMatch(player, bat, pit) {
+  const gains = {};
+  const add = (stat, amount) => {
+    if (!amount || amount <= 0) return;
+    const cap = capOf(player, stat);
+    const v = player.abilities[stat];
+    if (v >= cap) return;
+    const g = amount * talentMult(player.talent) * capFactor(v, cap);
+    if (g <= 0) return;
+    player.abilities[stat] = Math.min(cap, v + g);
+    gains[stat] = (gains[stat] || 0) + g;
+  };
+
+  if (bat) {
+    add('meet', bat.h * 2.6 + bat.rbi * 0.8);
+    add('power', (bat.hr * 4.5) + Math.max(0, bat.h - bat.hr) * 0.65);
+    add('speed', bat.r * 0.8);
+    // 有上場守備就有守備經驗
+    add('field', 1.3);
+    add('catch', 1.05);
+  }
+
+  if (pit) {
+    const innings = pit.outs / 3;
+    add('stamina', innings * 0.33);
+    add('breaking', pit.k * 0.25);
+    // 四壞少才練得到控球
+    add('control', Math.max(0, innings * 0.42 - pit.bb * 0.3));
+    add('velocity', innings * 0.11);
+  }
+
+  return gains;
+}
+
 /** 全隊練一週 */
 export function trainTeam(players, menuId, efficiency = 1) {
   const menu = menuById(menuId);

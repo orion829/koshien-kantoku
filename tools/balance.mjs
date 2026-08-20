@@ -6,6 +6,7 @@
 // 目標值寫在每一段的開頭，跑出來對不上就是壞了。
 
 import * as cal from '../js/data/calendar.js';
+import * as MT from '../js/rules/match.js';
 import * as A from '../js/data/abilities.js';
 import * as P from '../js/rules/player.js';
 import * as R from '../js/rules/roster.js';
@@ -15,6 +16,48 @@ import * as M from '../js/rules/morale.js';
 const med = (v) => v.slice().sort((a, b) => a - b)[Math.floor(v.length / 2)];
 const fmt = (v) => (A.grade(Math.round(v)) + Math.round(v)).padEnd(5);
 const head = (s) => console.log(`\n── ${s} ${'─'.repeat(Math.max(0, 58 - s.length))}`);
+
+// ── 0. 比賽模擬 ─────────────────────────────────────────
+head('比賽：數字要接近真實的高中棒球');
+{
+  const one = (a, b) => {
+    const t1 = MT.generateOpponent(a);
+    const t2 = MT.generateOpponent(b);
+    return MT.playMatch(
+      { ...t1, ...MT.buildLineup(t1.players) },
+      { ...t2, ...MT.buildLineup(t2.players) },
+    );
+  };
+  const N = 600;
+  const st = {
+    r: 0, h: 0, ab: 0, k: 0, bb: 0, hr: 0, pit: 0,
+  };
+  let homeWin = 0;
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  for (let i = 0; i < N; i += 1) {
+    const m = one(55, 55);
+    [m.home, m.away].forEach((t) => {
+      st.r += t.total;
+      st.h += sum(t.batters.map((b) => b.h));
+      st.ab += sum(t.batters.map((b) => b.ab));
+      st.k += sum(t.batters.map((b) => b.k));
+      st.bb += sum(t.batters.map((b) => b.bb));
+      st.hr += sum(t.batters.map((b) => b.hr));
+      st.pit += sum(t.pitchers.map((p) => p.pitches));
+    });
+    if (m.winner === 'home') homeWin += 1;
+  }
+  const per = (v) => (v / (N * 2)).toFixed(2);
+  console.log(`  得分 ${per(st.r)} (4〜5)　安打 ${per(st.h)} (8〜9)　全壘打 ${per(st.hr)} (0.5)`);
+  console.log(`  三振 ${per(st.k)} (7)　四壞 ${per(st.bb)} (3〜4)　投球數 ${per(st.pit)} (120〜140)`);
+  console.log(`  打擊率 ${(st.h / st.ab).toFixed(3)} (.270)　主隊勝率 ${(homeWin / N * 100).toFixed(0)}% (50)`);
+  console.log('  戰力差 → 勝率（要留爆冷空間，不能一面倒）');
+  for (const [a, b] of [[55, 45], [55, 50], [55, 60], [55, 65]]) {
+    let w = 0;
+    for (let i = 0; i < 400; i += 1) if (one(a, b).winner === 'home') w += 1;
+    console.log(`    ${a} vs ${b} → ${(w / 4).toFixed(0)}%`);
+  }
+}
 
 // ── 1. 士氣與練習效率 ───────────────────────────────────
 head('士氣：被淘汰之後最多只能維持 0.70，回不到 100%');

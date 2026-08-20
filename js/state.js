@@ -2,8 +2,8 @@ import { byId } from './data/prefectures.js';
 import { buildRun } from './data/calendar.js';
 import { createRoster } from './rules/roster.js';
 
-const SAVE_KEY = 'koshien-kantoku:save:v5';
-export const SAVE_VERSION = 5;
+const SAVE_KEY = 'koshien-kantoku:save:v6';
+export const SAVE_VERSION = 6;
 
 /** 從開始畫面的輸入建立一份新的遊戲存檔 */
 export function createGame({ managerName, schoolName, prefectureId }) {

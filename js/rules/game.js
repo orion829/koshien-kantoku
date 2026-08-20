@@ -9,9 +9,13 @@
 
 import { toTrainingWeek } from '../data/calendar.js';
 import { grade } from '../data/abilities.js';
-import { MENUS, menuById, trainTeam } from './training.js';
+import { MENUS, menuById, trainTeam, growFromMatch } from './training.js';
 import { efficiency, moraleLabel, advance } from './morale.js';
 import { overall, isPitcher, createPlayer } from './player.js';
+import { generateOpponent, buildLineup, playMatch } from './match.js';
+import {
+  healthy, isInjured, injure, healWeek, matchInjuryChance, trainInjuryChance,
+} from './injury.js';
 import {
   advanceYear, addRecruits, active, retireSeniors, MIN_PLAYERS,
 } from './roster.js';
@@ -96,9 +100,9 @@ const STAT_NAME = {
 
 // ── 比賽（暫時的簡單判定，之後要換成真的模擬）────────────
 
-/** 隊伍戰力：先發野手的平均 + 王牌投手（退隊的不算） */
+/** 隊伍戰力：先發野手的平均 + 王牌投手（退隊和養傷中的不算） */
 export function teamStrength(all) {
-  const sorted = active(all).sort((a, b) => overall(b) - overall(a));
+  const sorted = healthy(active(all)).sort((a, b) => overall(b) - overall(a));
   const batters = sorted.filter((p) => !isPitcher(p)).slice(0, 8);
   const ace = sorted.find(isPitcher);
   const batAvg = batters.length
@@ -129,20 +133,16 @@ function opponentStrength(phase, roundIndex, wins) {
   return o.base + local + roundIndex * o.step;
 }
 
-/** 打一場。回傳 true 代表贏 */
-function playGame(mine, theirs, rng) {
-  const p = 1 / (1 + Math.exp(-(mine - theirs) / 9));
-  return rng() < p;
-}
+/** 日本的規則：投手一週最多 500 球 */
+export const WEEKLY_PITCH_LIMIT = 500;
 
 /**
- * 打完這一週的比賽。回傳每一場的結果。
- * 輸掉就把這個賽事標成淘汰，後面的週會自動變成練習週。
+ * 打完這一週的比賽。一週最多三場，輸了就停。
+ * 每一場都是完整的模擬，會產生詳細的紀錄表。
  */
 export function playWeek(game, rng = Math.random) {
   const w = currentWeek(game);
   const prog = game.progress[game.cursor.year - 1];
-  const mine = teamStrength(game.team.players);
 
   // 這一週是這個賽事的第幾輪開始
   const year = game.schedule[game.cursor.year - 1];
@@ -153,12 +153,52 @@ export function playWeek(game, rng = Math.random) {
     }
   }
 
+  // 這一週的投球數要跨場累計（500 球規則）
+  const pitchedThisWeek = new Map();
+
   const results = [];
   let out = false;
   for (let i = 0; i < w.games.length; i++) {
     const theirs = opponentStrength(w.phase, roundIndex + i, game.difficulty.wins);
-    const won = playGame(mine, theirs, rng);
-    results.push({ round: w.games[i], won, mine, theirs });
+    const opp = generateOpponent(theirs, rng);
+
+    // 一週投超過 500 球的人不能再投，但還是要上場打擊（真實規則）
+    const ours = healthy(active(game.team.players));
+    const cannotPitch = ours
+      .filter((p) => (pitchedThisWeek.get(p.id) || 0) >= WEEKLY_PITCH_LIMIT)
+      .map((p) => p.id);
+    const mine = buildLineup(ours, { cannotPitch });
+    const theirLineup = buildLineup(opp.players);
+
+    // 甲子園本戰沒有提前結束，地區大賽和秋季大賽有
+    const mercy = !['koshien', 'senbatsu'].includes(w.phase);
+    const m = playMatch(
+      { name: game.school.name, ...mine },
+      { name: opp.name, ...theirLineup },
+      rng,
+      { mercy },
+    );
+
+    // 記投球數
+    m.home.pitchers.forEach((p) => {
+      pitchedThisWeek.set(p.id, (pitchedThisWeek.get(p.id) || 0) + p.pitches);
+    });
+
+    const won = m.winner === 'home';
+    const growth = applyMatchOutcome(game, m, rng);
+
+    results.push({
+      round: w.games[i],
+      won,
+      opponent: opp.name,
+      score: { us: m.home.total, them: m.away.total },
+      innings: m.innings,
+      called: m.called,
+      box: { us: m.home, them: m.away },
+      plays: m.plays,
+      growth,
+    });
+
     if (!won) { out = true; break; }
   }
 
@@ -173,6 +213,36 @@ export function playWeek(game, rng = Math.random) {
 
   game.morale.weeksSinceMatch = 0;
   return results;
+}
+
+/**
+ * 一場打完之後：依表現讓球員成長，然後擲骰看有沒有人受傷。
+ * 投手投越多球越容易受傷 —— 這就是 500 球規則存在的理由。
+ */
+function applyMatchOutcome(game, m, rng) {
+  const byId = new Map(active(game.team.players).map((p) => [p.id, p]));
+  const bat = new Map(m.home.batters.map((b) => [b.id, b]));
+  const pit = new Map(m.home.pitchers.map((p) => [p.id, p]));
+
+  const grew = [];
+  const injured = [];
+
+  const played = new Set([...bat.keys(), ...pit.keys()]);
+  played.forEach((id) => {
+    const p = byId.get(id);
+    if (!p) return;
+
+    const gains = growFromMatch(p, bat.get(id), pit.get(id));
+    const total = Object.values(gains).reduce((a, b) => a + b, 0);
+    if (total > 0.05) grew.push({ name: p.name, gains, total });
+
+    const pitches = pit.get(id)?.pitches || 0;
+    if (rng() < matchInjuryChance(p, pitches)) {
+      injured.push({ ...injure(p, rng), pitches });
+    }
+  });
+
+  return { grew, injured };
 }
 
 function isLastWeekOfPhase(year, w) {
@@ -202,10 +272,15 @@ export function takeAction(game, actionId, rng = Math.random) {
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'practice');
       log.action = '練習賽';
     } else if (menuById(actionId)) {
-      const players = active(game.team.players);
+      // 養傷中的人不參加練習
+      const players = healthy(active(game.team.players));
       const before = snapshotGrades(players);
       const results = trainTeam(players, actionId, eff);
       log.gains = summariseGains(players, results, before);
+      // 練習也會受傷，只是機率低很多
+      log.injured = players
+        .filter(() => true)
+        .flatMap((p) => (rng() < trainInjuryChance(p) ? [injure(p, rng)] : []));
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'train');
       log.action = menuById(actionId).name;
       log.trained = true;
@@ -221,6 +296,9 @@ export function takeAction(game, actionId, rng = Math.random) {
       log.joined = fillToMinimum(game, rng);
     }
   }
+
+  // 每過一週，養傷的人就好一點
+  log.returned = healWeek(game.team.players);
 
   step(game, rng);
   return log;

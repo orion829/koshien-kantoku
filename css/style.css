@@ -899,3 +899,201 @@ table.results td.win { color: var(--accent); font-weight: 500; }
 .ups li { padding: 1px 0; }
 .ups li::before { content: "▲ "; color: var(--accent); font-size: 10px; }
 .ups b { font-weight: 500; }
+
+/* ---------- 主標題（含雷達圖）---------- */
+
+.masthead--team {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  text-align: left;
+}
+
+.masthead__str { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.masthead__str b {
+  color: var(--accent);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+
+.masthead__radar { flex: 0 0 auto; }
+
+@media (max-width: 620px) {
+  .masthead--team { flex-direction: column; align-items: flex-start; }
+}
+
+/* ---------- 雷達圖 ---------- */
+
+.radar { display: block; overflow: visible; }
+.radar__ring { fill: none; stroke: var(--line); stroke-width: 0.6; }
+.radar__spoke { stroke: var(--line); stroke-width: 0.6; }
+
+.radar__shape {
+  fill: rgba(217, 138, 74, .22);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.radar__dot { fill: var(--accent); }
+
+.radar__label {
+  font-size: 9.5px;
+  fill: var(--muted);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-family: var(--font);
+}
+
+.radar__label--pit { fill: var(--blue); }
+.radar__g { font-size: 10px; font-weight: 600; }
+
+/* ---------- 比賽卡片 ---------- */
+
+.games { display: grid; gap: 8px; margin-top: 4px; }
+
+.game {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.game--win { border-left-color: var(--green); }
+.game--lose { border-left-color: var(--danger); }
+
+.game__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.game__head:hover { background: var(--surface-2); }
+.game__round { font-size: 11.5px; color: var(--muted); min-width: 5.5em; }
+.game__score { flex: 1; font-variant-numeric: tabular-nums; }
+.game__score b { font-weight: 500; }
+.game__score em { font-style: normal; color: var(--muted); margin: 0 2px; }
+
+.game__flag {
+  font-size: 11px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+
+.game--win .game__flag { color: var(--green); border-color: var(--green); }
+.game--lose .game__flag { color: var(--danger); border-color: var(--danger); }
+.game__note { font-size: 11px; color: var(--muted); }
+
+.game__body { padding: 4px 14px 14px; }
+
+/* ---------- 逐局比分 ---------- */
+
+table.ls {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 6px;
+}
+
+table.ls th, table.ls td {
+  padding: 3px 7px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+
+table.ls thead th { color: var(--muted); font-weight: 400; font-size: 11px; }
+table.ls .ls__name { text-align: left; color: var(--muted); font-weight: 400; white-space: nowrap; }
+table.ls tr.is-us .ls__name { color: var(--text); font-weight: 500; }
+table.ls .ls__tot { font-weight: 600; color: var(--accent); }
+table.ls .ls__h { color: var(--muted); }
+
+/* ---------- 選手數據表 ---------- */
+
+.bs__h {
+  margin: 14px 0 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: .06em;
+}
+
+.bs__h--bad { color: var(--danger); }
+
+table.bs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+table.bs th {
+  font-weight: 400;
+  font-size: 10.5px;
+  color: var(--muted);
+  padding: 2px 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.bs td { padding: 2px 4px; text-align: right; border-top: 1px solid var(--line); }
+table.bs .bs__pos, table.bs .bs__name { text-align: left; }
+table.bs .bs__pos { color: var(--muted); width: 1.6em; }
+table.bs .bs__name { width: 40%; }
+table.bs .bs__avg { color: var(--muted); }
+table.bs td.hi { color: var(--accent); font-weight: 600; }
+table.bs td.warn-num { color: var(--danger); font-weight: 600; }
+
+/* ---------- 精彩場面 ---------- */
+
+.hl { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.hl li { padding: 1px 0; }
+.hl__inn { color: var(--muted); margin-right: 6px; font-size: 11px; }
+.hl__rbi { color: var(--accent); font-size: 11px; margin-left: 5px; }
+
+.grew { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.grew li { padding: 1px 0; }
+.grew b { font-weight: 500; margin-right: 6px; }
+
+/* ---------- 受傷 ---------- */
+
+.injs { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; }
+
+.inj {
+  padding: 4px 10px;
+  border-left: 2px solid var(--muted);
+  margin-bottom: 3px;
+  background: var(--surface);
+  border-radius: 0 4px 4px 0;
+}
+
+.inj--light { border-left-color: var(--muted); }
+.inj--medium { border-left-color: var(--accent); }
+.inj--serious { border-left-color: var(--danger); }
+.inj b { font-weight: 500; margin-right: 4px; }
+.inj--serious b { color: var(--danger); }
+
+.inj__perm {
+  color: var(--danger);
+  font-weight: 500;
+  margin-left: 6px;
+  border: 1px solid var(--danger);
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 11px;
+}
+
+.inj__weeks { color: var(--muted); margin-left: 6px; }
+.inj__why { color: var(--muted); font-size: 11px; margin-left: 6px; }
