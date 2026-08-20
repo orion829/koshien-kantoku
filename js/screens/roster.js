@@ -124,10 +124,11 @@ export function renderRoster(root, game) {
 
   root.innerHTML = `
     <div class="roster">
+      ${game.team.startersGraduated ? '' : `
       <div class="archetype archetype--${arch.id}">
         <b>${arch.name}</b>
         <span>${arch.desc}</span>
-      </div>
+      </div>`}
 
       <ul class="tally">
         <li><b>${s.total}</b><span>總人數</span></li>

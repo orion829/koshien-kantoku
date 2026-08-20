@@ -293,6 +293,8 @@ export function takeAction(game, actionId, rng = Math.random) {
   // 還有沒選的三選一或事件，先擋著
   if (game.pendingDraft || game.pendingEvent || game.pendingTransfer
     || game.pendingAwaken || game.pendingAlumniVisit) return null;
+  // 校務投資面板只顯示一畫面：離開這一畫面（不管做什麼行動）就收起來
+  game.pendingInvest = false;
 
   const mods = modifiers(game);
   const boost = game.weekBoost || null;
@@ -347,6 +349,10 @@ export function takeAction(game, actionId, rng = Math.random) {
     game.morale.weeksSinceMatch += 1;
     log.action = '（過場）';
     if (w.retireSeniors) {
+      // 接手時的那批三年級（開局種類，例如「黃金世代」）畢業之後，
+      // 主畫面／選手名單就不該再顯示那個開局標籤了——之後的三年級
+      // 都是自己養出來的，不是「接手時抽到的那批」
+      game.team.startersGraduated = true;
       const { count, retirees } = retireSeniors(game.team.players);
       log.retired = count;
       log.drafted = checkDraft(game, retirees, rng);
@@ -356,6 +362,9 @@ export function takeAction(game, actionId, rng = Math.random) {
       const earned = legacyPointsFor(game.progress[game.cursor.year - 1], log.drafted.length);
       game.legacyPoints = (game.legacyPoints || 0) + earned;
       log.legacyEarned = earned;
+      // 點數是這一步才算出來的，所以投資面板要留到下一畫面才顯示，
+      // 不然玩家在這一步看到的還是「還沒加上今年」的舊餘額
+      game.pendingInvest = true;
     }
   }
 

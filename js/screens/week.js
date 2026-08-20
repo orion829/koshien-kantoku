@@ -501,7 +501,7 @@ export function renderWeek(root, game, onChange) {
              <b>下一步</b><span>${w.event}</span>
            </button>
          </div>
-         ${w.retireSeniors ? `
+         ${game.pendingInvest ? `
            ${resultTable(game)}
            ${investPanel(game)}
            <button type="button" class="btn btn--wide" data-summary="download">
