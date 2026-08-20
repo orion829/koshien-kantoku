@@ -2,8 +2,8 @@ import { byId } from './data/prefectures.js';
 import { buildRun } from './data/calendar.js';
 import { createRoster } from './rules/roster.js';
 
-const SAVE_KEY = 'koshien-kantoku:save:v4';
-export const SAVE_VERSION = 4;
+const SAVE_KEY = 'koshien-kantoku:save:v5';
+export const SAVE_VERSION = 5;
 
 /** 從開始畫面的輸入建立一份新的遊戲存檔 */
 export function createGame({ managerName, schoolName, prefectureId }) {
@@ -45,11 +45,12 @@ export function createGame({ managerName, schoolName, prefectureId }) {
     // 士氣計時器（距離上一場正式比賽過了幾週）
     morale: { weeksSinceMatch: 0 },
     // 那一年各項比賽有沒有被淘汰
-    progress: [
-      { regional: null, koshien: null, autumn: null, senbatsu: null },
-      { regional: null, koshien: null, autumn: null, senbatsu: null },
-      { regional: null, koshien: null, autumn: null, senbatsu: null },
-    ],
+    progress: [1, 2, 3].map(() => ({
+      regional: null, koshien: null, autumn: null, autumnArea: null, senbatsu: null,
+    })),
+
+    // 最近做過的事，給畫面顯示用（只留最後 40 筆）
+    log: [],
   };
 }
 

@@ -680,3 +680,173 @@ td.barcell { width: 62px; padding-right: 8px; }
 .bar i { background: var(--accent); z-index: 1; }
 
 table.abil td.num em { font-style: normal; opacity: .55; }
+
+/* ---------- 本週 ---------- */
+
+.weekbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.weekbar__pos { font-size: 12px; color: var(--muted); letter-spacing: .06em; }
+
+.weekbar__event {
+  margin: 2px 0 3px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .03em;
+}
+
+.weekbar__month { font-size: 12.5px; color: var(--muted); }
+
+.weekbar__str { text-align: center; white-space: nowrap; }
+.weekbar__str b {
+  display: block;
+  font-size: 26px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.weekbar__str span { font-size: 11px; color: var(--muted); }
+
+/* ---------- 士氣 ---------- */
+
+.morale {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 16px;
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+
+.morale__label { color: var(--muted); font-size: 12px; }
+.morale__eff { font-variant-numeric: tabular-nums; }
+.morale__hint { color: var(--muted); font-size: 11.5px; margin-left: auto; }
+.morale--good b { color: var(--green); }
+.morale--mid b { color: var(--accent); }
+.morale--bad b { color: var(--danger); }
+.morale--bad { border-color: var(--danger); }
+
+/* ---------- 行動按鈕 ---------- */
+
+h3.sec {
+  margin: 20px 0 9px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: .06em;
+}
+
+h3.sec:first-child { margin-top: 0; }
+
+.acts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 8px;
+}
+
+.act {
+  text-align: left;
+  font-family: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 11px 14px;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color .12s, background .12s;
+}
+
+.act:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-2); }
+.act b { display: block; font-size: 14px; font-weight: 500; }
+.act span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+.act--todo { opacity: .4; cursor: not-allowed; }
+
+.acts--match { grid-template-columns: 1fr; }
+
+.act--go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  text-align: center;
+  padding: 15px;
+}
+
+.act--go b { font-size: 16px; font-weight: 600; letter-spacing: .06em; }
+.act--go span { color: var(--accent-ink); opacity: .75; }
+.act--go:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+
+/* ---------- 紀錄 ---------- */
+
+.logs { list-style: none; margin: 0; padding: 0; }
+
+.log {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--line-strong);
+  align-items: baseline;
+}
+
+.log + .log { margin-top: 2px; }
+.log--match { border-left-color: var(--accent); }
+.log--training { border-left-color: var(--green); }
+.log--transition { border-left-color: var(--muted); }
+.log__wk { color: var(--muted); font-size: 11px; text-align: right; }
+.log__body b { font-weight: 500; }
+.log__eff { color: var(--muted); font-size: 11px; margin-left: 8px; }
+
+.res {
+  display: inline-block;
+  font-size: 11px;
+  padding: 0 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+  border: 1px solid;
+}
+
+.res--win { color: var(--green); border-color: var(--green); }
+.res--lose { color: var(--danger); border-color: var(--danger); }
+
+/* ---------- 結束畫面 ---------- */
+
+.over { text-align: center; padding: 20px 0; }
+.over h2 { font-size: 24px; font-weight: 600; margin: 0 0 4px; letter-spacing: .06em; }
+.over .tally { margin-top: 20px; justify-content: center; }
+
+table.results {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 22px;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+table.results th {
+  font-weight: 500;
+  color: var(--muted);
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+table.results td {
+  padding: 6px 10px;
+  border-top: 1px solid var(--line);
+}
+
+table.results td.win { color: var(--accent); font-weight: 500; }

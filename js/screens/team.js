@@ -1,13 +1,16 @@
 import { UI } from '../strings.js';
+import { save } from '../state.js';
+import { renderWeek } from './week.js';
 import { renderRoster } from './roster.js';
 import { renderSchedule } from './schedule.js';
 
 const TABS = [
+  { id: 'week', name: '本週', render: renderWeek },
   { id: 'roster', name: '選手名單', render: renderRoster },
   { id: 'schedule', name: '賽程表', render: renderSchedule },
 ];
 
-/** 上任之後的主畫面。目前有兩個分頁，主要玩法做好之後會再加。 */
+/** 上任之後的主畫面 */
 export function renderTeam(root, game, onReset) {
   let active = TABS[0].id;
 
@@ -35,11 +38,18 @@ export function renderTeam(root, game, onReset) {
   const content = root.querySelector('#tabContent');
   const tabs = root.querySelector('#tabs');
 
+  // 做完一個行動之後：存檔、重畫
+  function afterAction() {
+    save(game);
+    draw();
+  }
+
   function draw() {
     tabs.querySelectorAll('.tab').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.tab === active);
     });
-    TABS.find((t) => t.id === active).render(content, game);
+    TABS.find((t) => t.id === active).render(content, game, afterAction);
+    content.scrollIntoView({ block: 'nearest' });
   }
 
   tabs.addEventListener('click', (e) => {

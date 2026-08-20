@@ -94,9 +94,11 @@ js/
     player.js          球員的資料模型
     roster.js          你接手的那支隊伍
     training.js        練習項目與成長
+    game.js            遊戲主迴圈
   screens/
     setup.js           開始畫面
     team.js            主畫面（分頁）
+    week.js            本週要做什麼
     roster.js          選手名單
     schedule.js        賽程表
 tools/
