@@ -45,8 +45,13 @@ export const ARCHETYPES = {
  * 每一個年級都要照這個順序補位置。
  * 重點是「每個年級都要有投手和捕手」——
  * 不然三年級八月退隊之後，隊上會一個投手都沒有。
+ *
+ * 第二個 P 特地排在第 5 個位置，不是排最後：一週三場、一人 500 球的
+ * 規則下，光一個投手根本撐不住，正常規模的年級（5〜8人）都該有兩個
+ * 投手可以輪。原本排在最後一個（第10個）幾乎沒有年級人數摸得到，
+ * 等於整支隊伍常態上只有 3 個投手（每年級各 1 個），比例明顯偏低。
  */
-const GRADE_CORE = ['P', 'C', 'SS', 'CF', '1B', '2B', '3B', 'RF', 'LF', 'P'];
+const GRADE_CORE = ['P', 'C', 'SS', 'CF', 'P', '1B', '2B', '3B', 'RF', 'LF'];
 
 /**
  * 一、二年級（三年級八月退隊之後還會留下來的人）加起來要有幾個，
@@ -55,10 +60,10 @@ const GRADE_CORE = ['P', 'C', 'SS', 'CF', '1B', '2B', '3B', 'RF', 'LF', 'P'];
  */
 export const CONTINUING_MIN = 16;
 
-/** 哪些守備位置現在沒人守 */
+/** 哪些守備位置現在沒人守（投手也算，人數不夠的話投手一樣可能是缺口） */
 function missingPositions(players) {
   const have = new Set(players.map((p) => p.position));
-  return POSITIONS.map((p) => p.id).filter((p) => p !== 'P' && !have.has(p));
+  return POSITIONS.map((p) => p.id).filter((p) => !have.has(p));
 }
 
 const randInt = (rng, lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));

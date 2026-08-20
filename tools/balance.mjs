@@ -230,6 +230,15 @@ head('隊伍：三年級退隊後不能沒有投手／捕手，一二年級加�
   console.log(`  退隊後沒投手 ${ok(noP)}　沒捕手 ${ok(noC)}　人數不足 ${ok(tooFew)}　能力矛盾 ${ok(bad)}`);
   console.log(`  一二年級低於 ${R.CONTINUING_MIN} 人 ${ok(belowFloor)}`
     + `　中位數 ${med(continuing)} 人（要 >= ${R.CONTINUING_MIN}）`);
+
+  const pRatio = runs.map((r) => r.players.filter(P.isPitcher).length / r.players.length);
+  const byArch = {};
+  runs.forEach((r) => {
+    const id = r.archetype.id;
+    (byArch[id] ||= []).push(r.players.filter(P.isPitcher).length / r.players.length);
+  });
+  console.log(`  投手比例 中位數 ${(med(pRatio) * 100).toFixed(0)}%（普通／黃金世代要接近 25〜30%）`);
+  console.log(`  　${Object.entries(byArch).map(([id, v]) => `${id} ${(med(v) * 100).toFixed(0)}%`).join('　')}`);
 }
 
 head('招生：越強的候選人越難追，六週的招生季全押同一人才追得到頂級天才');
