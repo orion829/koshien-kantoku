@@ -209,12 +209,14 @@ head('整局：接手時的一年級，主練的那項能力（打擊）第3年�
 }
 
 // ── 6. 隊伍生成的健全性 ─────────────────────────────────
-head('隊伍：三年級退隊後不能沒有投手／捕手，人數不能低於 9');
+head('隊伍：三年級退隊後不能沒有投手／捕手，一二年級加起來不能低於 16');
 {
   const runs = Array.from({ length: 800 }, () => R.createRoster());
   const noP = runs.filter((r) => !r.players.some((p) => p.gradeYear < 3 && P.isPitcher(p))).length;
   const noC = runs.filter((r) => !r.players.some((p) => p.gradeYear < 3 && p.position === 'C')).length;
   const tooFew = runs.filter((r) => r.players.length < R.MIN_PLAYERS).length;
+  const continuing = runs.map((r) => r.players.filter((p) => p.gradeYear < 3).length);
+  const belowFloor = continuing.filter((n) => n < R.CONTINUING_MIN).length;
   let bad = 0;
   runs.forEach((r) => r.players.forEach((p) => p.skills.forEach((id) => {
     const sk = A.skillById(id);
@@ -225,6 +227,8 @@ head('隊伍：三年級退隊後不能沒有投手／捕手，人數不能低�
   })));
   const ok = (n) => (n === 0 ? 'OK' : `壞了 (${n})`);
   console.log(`  退隊後沒投手 ${ok(noP)}　沒捕手 ${ok(noC)}　人數不足 ${ok(tooFew)}　能力矛盾 ${ok(bad)}`);
+  console.log(`  一二年級低於 ${R.CONTINUING_MIN} 人 ${ok(belowFloor)}`
+    + `　中位數 ${med(continuing)} 人（要 >= ${R.CONTINUING_MIN}）`);
 }
 
 // ── 7. roguelike：對手特色、作戰、傳統 ──────────────────
@@ -295,6 +299,9 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
   let events = 0;
   let transfers = 0;
   let superstars = 0;
+  let awakenSeenN = 0;
+  let awakenBet = 0;
+  let awakenWin = 0;
   const strengths = [];
 
   for (let n = 0; n < 40; n += 1) {
@@ -310,6 +317,15 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
           transfers += 1;
           if (g.pendingTransfer.superstar) superstars += 1;
           RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet');
+          continue;
+        }
+        if (g.pendingAwaken) {
+          awakenSeenN += 1;
+          // 模擬一個「大多會賭一把」的玩家，這樣才能同時驗證賭贏跟賭輸的分支
+          const bet = Math.random() < 0.7;
+          if (bet) awakenBet += 1;
+          const r = RG.resolveAwaken(g, bet ? 'bet' : 'pass');
+          if (r?.awakenResult?.outcome === 'success') awakenWin += 1;
           continue;
         }
         if (g.pendingEvent) { events += 1; RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
@@ -331,6 +347,9 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
     + `　轉學生 ${(transfers / 40).toFixed(1)} 次（要是 3.0）`
     + `　超神轉學生 ${superstars} / ${transfers}（機率設定 2.5%）`);
   console.log(`  每局突發事件 ${(events / 40).toFixed(1)} 次`);
+  console.log(`  每局覺醒卡 ${(awakenSeenN / 40).toFixed(1)} 次　`
+    + `賭下去 ${awakenBet}/${awakenSeenN}　賭贏 ${awakenWin}/${awakenBet}`
+    + `（機率設計上大約 0.4〜0.6）`);
   console.log(`  亂玩的最終戰力 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
     + `（認真玩要明顯更高）`);
 }

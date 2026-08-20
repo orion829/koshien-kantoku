@@ -25,12 +25,12 @@ import {
 } from './scouting.js';
 import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
-  pickTransferWeek, rollTransferStudent, resolveTransfer,
+  pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
 } from './roguelike.js';
 
 export {
   choosePerk, resolveEvent, drawTactics, modifiers, matchMods, resolveTransfer,
-  PERKS, perkById, TACTICS, tacticById, eventById,
+  resolveAwaken, PERKS, perkById, TACTICS, tacticById, eventById,
 } from './roguelike.js';
 
 // ── 比賽的資格關聯 ──────────────────────────────────────
@@ -284,7 +284,7 @@ export function takeAction(game, actionId, rng = Math.random) {
   const w = currentWeek(game);
   if (!w) return null;
   // 還有沒選的三選一或事件，先擋著
-  if (game.pendingDraft || game.pendingEvent || game.pendingTransfer) return null;
+  if (game.pendingDraft || game.pendingEvent || game.pendingTransfer || game.pendingAwaken) return null;
 
   const mods = modifiers(game);
   const boost = game.weekBoost || null;
@@ -452,12 +452,14 @@ function step(game, rng) {
     game.pendingDraft = drawPerks(game, 3, rng);
   }
   if (nw.kind === 'training') {
-    // 這一年抽到的那一週，轉學生優先，那週就不跳一般事件了
+    // 一週最多跳一張卡：轉學生優先，再來是覺醒，最後才是一般事件
     if (game.transferWeekIndex === game.cursor.week - 1 && !game.pendingTransfer) {
       game.pendingTransfer = rollTransferStudent(game, rng);
       game.transferWeekIndex = -1;
-    } else if (!game.pendingEvent) {
-      game.pendingEvent = rollEvent(game, rng);
+    } else if (!game.pendingAwaken) {
+      const awaken = rollAwaken(game, rng);
+      if (awaken) game.pendingAwaken = awaken;
+      else if (!game.pendingEvent) game.pendingEvent = rollEvent(game, rng);
     }
   }
   if (nw.kind === 'match') {

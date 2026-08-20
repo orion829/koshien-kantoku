@@ -48,6 +48,19 @@ export const ARCHETYPES = {
  */
 const GRADE_CORE = ['P', 'C', 'SS', 'CF', '1B', '2B', '3B', 'RF', 'LF', 'P'];
 
+/**
+ * 一、二年級（三年級八月退隊之後還會留下來的人）加起來要有幾個，
+ * 不然隔天退隊完就快湊不出一隊。不分開局種類，這是保底，
+ * 不是難度——難度用天賦（talent）去做就好，人數不該是卡關的原因。
+ */
+export const CONTINUING_MIN = 16;
+
+/** 哪些守備位置現在沒人守 */
+function missingPositions(players) {
+  const have = new Set(players.map((p) => p.position));
+  return POSITIONS.map((p) => p.id).filter((p) => p !== 'P' && !have.has(p));
+}
+
 const randInt = (rng, lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
 const pick = (list, rng) => list[Math.floor(rng() * list.length)];
 
@@ -88,6 +101,21 @@ export function createRoster({ archetype = null, rng = Math.random } = {}) {
         ? randInt(rng, 4, 5)
         : randInt(rng, arch.talent[0], arch.talent[1]);
       players.push(createPlayer({ gradeYear, talent, position, rng }));
+    }
+  }
+
+  // 一、二年級人數不夠的話，補幾個資質普通的人進來湊數
+  const continuing = players.filter((p) => p.gradeYear < 3);
+  if (continuing.length < CONTINUING_MIN) {
+    const need = CONTINUING_MIN - continuing.length;
+    const holes = missingPositions(continuing);
+    for (let i = 0; i < need; i++) {
+      players.push(createPlayer({
+        gradeYear: rng() < 0.5 ? 1 : 2,
+        talent: randInt(rng, arch.talent[0], Math.max(arch.talent[0], arch.talent[1] - 1)),
+        position: holes[i] || null,
+        rng,
+      }));
     }
   }
 

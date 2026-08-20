@@ -1,12 +1,14 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成五種：
+// 這個檔案放「每一局都不一樣」的東西。分成六種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
 //   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
 //   3. 作戰   比賽週開打前三選一，只影響這一週的比賽
 //   4. 對手特色 每支對手學校都有一個特色，不是每場都一樣
 //   5. 轉學生 一年一定會遇到一個，隨機年級，極低機率是超神等級
+//   6. 能力覺醒 能力練過門檻時可能跳卡片，賭贏學會新能力，
+//             賭輸能力會掉或換來壞習慣
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
@@ -817,6 +819,104 @@ export function resolveTransfer(game, choice, rng = Math.random) {
       talent: player.talent, superstar, note,
     },
   };
+}
+
+// ── 6. 能力覺醒（賭運氣的卡片）──────────────────────────
+//
+// 特殊能力平常都是一出生就定好，不會再變。但練到某項能力過了門檻
+// （能力表裡的 req），代表這個人已經「摸到那個能力的邊」了，
+// 這時候會跳出一張卡：要不要賭一把讓他正式學會？
+// 賭贏就多一個好能力，賭輸的話能力會掉、或是換來一個壞習慣——
+// 這是真的有代價的賭注，不是純加分。
+
+/** 這一週跳出覺醒卡的機率（前提是隊上真的有人「摸到邊」了） */
+export const AWAKEN_CHANCE = 0.22;
+
+const STAT_NAME_LOOKUP = Object.fromEntries(
+  [...BATTER_STATS, ...PITCHER_STATS].map((s) => [s.id, s.name]),
+);
+
+const skillAllowed = (s, abilities) => {
+  if (!s.req) return true;
+  const v = abilities[s.req.stat];
+  if (s.req.min !== undefined && v < s.req.min) return false;
+  if (s.req.max !== undefined && v > s.req.max) return false;
+  return true;
+};
+
+/**
+ * 誰「摸到邊」了：能力已經過門檻，但還沒拿到那個好能力，
+ * 而且沒有已經賭輸過（賭輸的組合不會再跳第二次）。
+ * 只看有門檻（req）的能力——沒有門檻的能力就只能出生就帶，靠賭是賭不到的。
+ */
+function findAwakenCandidates(game) {
+  const tried = new Set(game.awakenSeen || []);
+  const out = [];
+  active(game.team.players).forEach((p) => {
+    if (p.injury && p.injury.weeks > 0) return;
+    const role = p.position === 'P' ? 'pitcher' : 'batter';
+    skillsFor(role, true).filter((s) => s.req).forEach((s) => {
+      if (p.skills.includes(s.id)) return;
+      if (tried.has(`${p.id}:${s.id}`)) return;
+      if (!skillAllowed(s, p.abilities)) return;
+      out.push({ player: p, skill: s });
+    });
+  });
+  return out;
+}
+
+/** 這一週要不要跳覺醒卡。回傳 { player, skill }，或 null */
+export function rollAwaken(game, rng = Math.random) {
+  const candidates = findAwakenCandidates(game);
+  if (!candidates.length) return null;
+  if (rng() >= AWAKEN_CHANCE) return null;
+  return pickOne(candidates, rng);
+}
+
+/** 賭下去，或先算了。回傳一筆給畫面看的紀錄 */
+export function resolveAwaken(game, choice, rng = Math.random) {
+  const a = game.pendingAwaken;
+  if (!a) return null;
+  const { player: p, skill } = a;
+  game.pendingAwaken = null;
+
+  const log = (outcome, note) => ({
+    week: game.cursor.abs,
+    kind: 'awaken',
+    event: '能力覺醒',
+    awakenResult: {
+      name: p.name, skill: skill.name, outcome, note,
+    },
+  });
+
+  if (choice !== 'bet') {
+    return log('pass', '先按兵不動，這個機會之後可能還會再出現。');
+  }
+
+  // 賭輸的組合就別再跳第二次了，一人一個能力只有一次機會
+  game.awakenSeen = [...(game.awakenSeen || []), `${p.id}:${skill.id}`];
+
+  const winChance = clamp(0.35 + p.talent * 0.07, 0.3, 0.75);
+  if (rng() < winChance) {
+    p.skills.push(skill.id);
+    return log('success', `賭對了！${p.name} 正式學會了「${skill.name}」。`);
+  }
+
+  // 賭輸：一半機率能力受挫掉一點，一半機率換成壞習慣
+  const role = p.position === 'P' ? 'pitcher' : 'batter';
+  const badPool = skillsFor(role, false)
+    .filter((s) => skillAllowed(s, p.abilities) && !p.skills.includes(s.id));
+
+  if (rng() < 0.5 || !badPool.length) {
+    const statId = skill.req.stat;
+    const drop = 3 + Math.floor(rng() * 5);
+    p.abilities[statId] = Math.max(1, p.abilities[statId] - drop);
+    return log('fail', `賭輸了。練過頭傷到手感，${STAT_NAME_LOOKUP[statId] || statId} −${drop}。`);
+  }
+
+  const bad = badPool[Math.floor(rng() * badPool.length)];
+  p.skills.push(bad.id);
+  return log('fail', `賭輸了，還練壞了習慣——${p.name} 多了一個「${bad.name}」。`);
 }
 
 export { clamp };

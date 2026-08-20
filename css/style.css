@@ -1466,3 +1466,14 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 .last--superstar { border-left: 3px solid var(--accent); }
 
 .log--transfer .log__body { color: var(--accent); }
+
+/* ---------- 能力覺醒 ---------- */
+
+.event--awaken {
+  border-color: var(--blue);
+  background: linear-gradient(180deg, rgba(111, 157, 196, .12), var(--surface));
+}
+
+.event--awaken .event__title { color: var(--blue); }
+
+.log--awaken .log__body { color: var(--blue); }

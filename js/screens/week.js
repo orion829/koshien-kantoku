@@ -9,7 +9,7 @@ import {
   fameOf, JOIN_THRESHOLD, candidateHint, growthName,
 } from '../rules/scouting.js';
 import {
-  perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer,
+  perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer, resolveAwaken,
 } from '../rules/roguelike.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -97,6 +97,31 @@ function transferPanel(game) {
         <button type="button" class="card-pick card-pick--opt" data-act="transfer:quiet">
           <b class="card-pick__name">照常訓練</b>
           <span class="card-pick__desc">全隊打擊小漲一點</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+/** 能力覺醒：賭下去，或先算了 */
+function awakenPanel(game) {
+  const a = game.pendingAwaken;
+  if (!a) return '';
+  const { player: p, skill } = a;
+  return `
+    <div class="event event--awaken">
+      <h3 class="event__title">能力覺醒的預感</h3>
+      <p class="event__text">
+        <b>${p.name}</b> 練出手感了，好像快要學會「<b>${skill.name}</b>」
+        （${skill.desc}）。要不要賭一把？
+      </p>
+      <div class="picks picks--two">
+        <button type="button" class="card-pick card-pick--opt" data-act="awaken:bet">
+          <b class="card-pick__name">賭下去</b>
+          <span class="card-pick__desc">贏了學會技能，輸了能力會掉、或多一個壞習慣</span>
+        </button>
+        <button type="button" class="card-pick card-pick--opt" data-act="awaken:pass">
+          <b class="card-pick__name">先算了</b>
+          <span class="card-pick__desc">不冒險，這個機會以後可能還會再來</span>
         </button>
       </div>
     </div>`;
@@ -230,6 +255,15 @@ function lastResultBox(game) {
     </div>`;
   }
 
+  if (l.awakenResult) {
+    const a = l.awakenResult;
+    const cls = a.outcome === 'success' ? 'win' : a.outcome === 'pass' ? 'plain' : 'lose';
+    return `<div class="last last--${cls}">
+      <span class="last__head">能力覺醒：${a.name}（${a.skill}）</span>
+      <p class="last__note">${a.note}</p>
+    </div>`;
+  }
+
   if (l.scoutVisit) {
     return `<div class="last last--plain">
       <span class="last__head">上一週：${l.action}</span>
@@ -307,6 +341,11 @@ function logList(game) {
         <span class="log__body">${l.event}
         → <b>${l.transferResult.name}</b></span></li>`;
     }
+    if (l.awakenResult) {
+      return `<li class="log log--awaken"><span class="log__wk">#${l.week}</span>
+        <span class="log__body">${l.event}（${l.awakenResult.name}）
+        → <b>${{ success: '學會了', fail: '賭輸了', pass: '先算了' }[l.awakenResult.outcome]}</b></span></li>`;
+    }
     const extra = l.trained
       ? `<span class="log__eff">效率 ${pct(l.efficiency)}</span>` : '';
     return `<li class="log log--${l.kind}"><span class="log__wk">#${l.week}</span>
@@ -355,7 +394,8 @@ export function renderWeek(root, game, onChange) {
        </div>`
     : w.kind === 'training'
       ? (game.pendingTransfer ? transferPanel(game)
-        : game.pendingEvent ? eventPanel(game) : actionButtons(game))
+        : game.pendingAwaken ? awakenPanel(game)
+          : game.pendingEvent ? eventPanel(game) : actionButtons(game))
       : `<div class="acts acts--match">
            <button type="button" class="act act--go" data-act="__next">
              <b>下一步</b><span>${w.event}</span>
@@ -366,7 +406,7 @@ export function renderWeek(root, game, onChange) {
     ${weekBar(game, w)}
     ${perkStrip(game)}
     ${lastResultBox(game)}
-    ${w.kind === 'training' && !game.pendingEvent && !game.pendingTransfer ? moraleBox(game) : ''}
+    ${w.kind === 'training' && !game.pendingEvent && !game.pendingTransfer && !game.pendingAwaken ? moraleBox(game) : ''}
     ${body}
 
     ${injuryList(game)}
@@ -418,6 +458,11 @@ function bindActions(root, game, onChange) {
       }
       if (id.startsWith('transfer:')) {
         push(resolveTransfer(game, id.slice(9)));
+        onChange();
+        return;
+      }
+      if (id.startsWith('awaken:')) {
+        push(resolveAwaken(game, id.slice(7)));
         onChange();
         return;
       }

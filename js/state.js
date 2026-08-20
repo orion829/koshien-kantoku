@@ -3,8 +3,8 @@ import { buildRun } from './data/calendar.js';
 import { createRoster } from './rules/roster.js';
 import { drawPerks, pickTransferWeek } from './rules/roguelike.js';
 
-const SAVE_KEY = 'koshien-kantoku:save:v9';
-export const SAVE_VERSION = 9;
+const SAVE_KEY = 'koshien-kantoku:save:v10';
+export const SAVE_VERSION = 10;
 
 /** 從開始畫面的輸入建立一份新的遊戲存檔 */
 export function createGame({ managerName, schoolName, prefectureId }) {
@@ -61,6 +61,8 @@ export function createGame({ managerName, schoolName, prefectureId }) {
     extraFame: 0,                 // 事件加的注目度
     transferWeekIndex: pickTransferWeek(schedule[0]),  // 今年轉學生會在哪一週出現
     pendingTransfer: null,        // 還沒處理的轉學生
+    pendingAwaken: null,          // 還沒處理的能力覺醒賭注
+    awakenSeen: [],                // 賭輸過的（球員,能力）組合，不會再跳第二次
 
     // 最近做過的事，給畫面顯示用（只留最後 40 筆）
     log: [],
