@@ -12,6 +12,9 @@ import * as P from '../js/rules/player.js';
 import * as R from '../js/rules/roster.js';
 import * as T from '../js/rules/training.js';
 import * as M from '../js/rules/morale.js';
+import * as RG from '../js/rules/roguelike.js';
+import * as G from '../js/rules/game.js';
+import * as ST from '../js/state.js';
 
 const med = (v) => v.slice().sort((a, b) => a - b)[Math.floor(v.length / 2)];
 const fmt = (v) => (A.grade(Math.round(v)) + Math.round(v)).padEnd(5);
@@ -222,6 +225,104 @@ head('隊伍：三年級退隊後不能沒有投手／捕手，人數不能低�
   })));
   const ok = (n) => (n === 0 ? 'OK' : `壞了 (${n})`);
   console.log(`  退隊後沒投手 ${ok(noP)}　沒捕手 ${ok(noC)}　人數不足 ${ok(tooFew)}　能力矛盾 ${ok(bad)}`);
+}
+
+// ── 7. roguelike：對手特色、作戰、傳統 ──────────────────
+head('對手特色：平均起來要接近 0，不然強度階梯會失準');
+{
+  const trial = (theirMods, N = 900) => {
+    let w = 0;
+    for (let i = 0; i < N; i += 1) {
+      const t1 = MT.generateOpponent(55);
+      const t2 = MT.generateOpponent(55);
+      const m = MT.playMatch(
+        { ...t1, ...MT.buildLineup(t1.players), mods: RG.baseMods() },
+        { ...t2, ...MT.buildLineup(t2.players), mods: theirMods },
+      );
+      if (m.winner === 'home') w += 1;
+    }
+    return (w / N) * 100;
+  };
+
+  const base = trial(RG.baseMods());
+  let sum = 0;
+  const cells = RG.OPPONENT_TRAITS.map((t) => {
+    const mods = RG.baseMods();
+    t.apply(mods);
+    const v = trial(mods) - base;
+    sum += v;
+    return `${t.name} ${v >= 0 ? '+' : ''}${v.toFixed(0)}`;
+  });
+  console.log(`  對手沒特色時我方勝率 ${base.toFixed(0)}%（要接近 50）`);
+  console.log(`  ${cells.join('　')}`);
+  console.log(`  平均偏移 ${(sum / RG.OPPONENT_TRAITS.length).toFixed(1)}pp（要在 ±2 以內）`);
+}
+
+head('作戰與傳統：每個都要有用，但不能有一個獨大（+1〜+8pp）');
+{
+  const trial = (mods, N = 900) => {
+    let w = 0;
+    for (let i = 0; i < N; i += 1) {
+      const t1 = MT.generateOpponent(55);
+      const t2 = MT.generateOpponent(55);
+      const m = MT.playMatch(
+        { ...t1, ...MT.buildLineup(t1.players), mods },
+        { ...t2, ...MT.buildLineup(t2.players) },
+      );
+      if (m.winner === 'home') w += 1;
+    }
+    return (w / N) * 100;
+  };
+  const base = trial(RG.baseMods());
+  const line = (list) => list.map((x) => {
+    const mods = RG.baseMods();
+    x.apply(mods);
+    const v = trial(mods) - base;
+    return `${x.name} ${v >= 0 ? '+' : ''}${v.toFixed(0)}`;
+  }).join('　');
+
+  console.log(`  沒作戰時的勝率 ${base.toFixed(0)}%`);
+  console.log(`  作戰 ${line(RG.TACTICS)}`);
+  console.log(`  傳統 ${line(RG.PERKS)}`);
+  console.log('  ※ 穩紮穩打是負的沒關係，它換到的是「不受傷」');
+}
+
+head('一整局：三選一 5 次、事件約 6 次，而且不能當掉');
+{
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  let crash = 0;
+  let drafts = 0;
+  let events = 0;
+  const strengths = [];
+
+  for (let n = 0; n < 40; n += 1) {
+    const g = ST.createGame({
+      managerName: '測試', schoolName: '測試高校', prefectureId: 'aichi',
+    });
+    try {
+      let guard = 0;
+      while (!G.isRunOver(g) && guard < 300) {
+        guard += 1;
+        if (g.pendingDraft?.length) { drafts += 1; RG.choosePerk(g, pick(g.pendingDraft)); continue; }
+        if (g.pendingEvent) { events += 1; RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
+        if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
+        const w = G.currentWeek(g);
+        const acts = G.availableActions(g)
+          .filter((a) => !a.todo && !a.id.startsWith('scout'));
+        G.takeAction(g, w.kind === 'training' ? pick(acts).id : null);
+      }
+      strengths.push(G.teamStrength(g.team.players));
+    } catch (e) {
+      crash += 1;
+      console.log(`  當掉了：${e.message}`);
+    }
+  }
+  strengths.sort((a, b) => a - b);
+  console.log(`  跑完 ${strengths.length} 局　當掉 ${crash} 次（要是 0）`);
+  console.log(`  每局三選一 ${(drafts / 40).toFixed(1)} 次（要是 5.0）`
+    + `　突發事件 ${(events / 40).toFixed(1)} 次（7 左右）`);
+  console.log(`  亂玩的最終戰力 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
+    + `（認真玩要明顯更高）`);
 }
 
 console.log('');

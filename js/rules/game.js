@@ -10,7 +10,7 @@
 import { toTrainingWeek } from '../data/calendar.js';
 import { grade } from '../data/abilities.js';
 import { MENUS, menuById, trainTeam, growFromMatch } from './training.js';
-import { efficiency, moraleLabel, advance } from './morale.js';
+import { efficiency, moraleLabel, advance, PRACTICE_FLOOR } from './morale.js';
 import { overall, isPitcher, createPlayer } from './player.js';
 import { generateOpponent, buildLineup, playMatch } from './match.js';
 import {
@@ -23,6 +23,14 @@ import {
 import {
   generateCandidates, visitCandidate, resolveScouting, fameOf,
 } from './scouting.js';
+import {
+  modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
+} from './roguelike.js';
+
+export {
+  choosePerk, resolveEvent, drawTactics, modifiers, matchMods,
+  PERKS, perkById, TACTICS, tacticById, eventById,
+} from './roguelike.js';
 
 // ── 比賽的資格關聯 ──────────────────────────────────────
 // 地區大賽輸了就沒有甲子園；秋季縣大賽輸了就沒有秋季地區大賽，
@@ -157,6 +165,9 @@ export function playWeek(game, rng = Math.random) {
     }
   }
 
+  // 傳統 ＋ 這一週選的作戰
+  const mods = matchMods(game);
+
   // 這一週的投球數要跨場累計（500 球規則）
   const pitchedThisWeek = new Map();
 
@@ -179,8 +190,8 @@ export function playWeek(game, rng = Math.random) {
     // 甲子園本戰沒有提前結束，地區大賽和秋季大賽有
     const mercy = !['koshien', 'senbatsu'].includes(w.phase);
     const m = playMatch(
-      { name: game.school.name, ...mine },
-      { name: opp.name, ...theirLineup },
+      { name: game.school.name, ...mine, mods },
+      { name: opp.name, ...theirLineup, mods: opp.mods },
       rng,
       { mercy },
     );
@@ -191,12 +202,14 @@ export function playWeek(game, rng = Math.random) {
     });
 
     const won = m.winner === 'home';
-    const growth = applyMatchOutcome(game, m, rng);
+    const growth = applyMatchOutcome(game, m, rng, mods);
 
     results.push({
       round: w.games[i],
       won,
       opponent: opp.name,
+      trait: opp.trait,
+      tacticName: tacticById(game.tactic)?.name || null,
       score: { us: m.home.total, them: m.away.total },
       innings: m.innings,
       called: m.called,
@@ -218,6 +231,9 @@ export function playWeek(game, rng = Math.random) {
   };
 
   game.morale.weeksSinceMatch = 0;
+  // 作戰只管這一週
+  game.tactic = null;
+  game.tacticChoices = null;
   return results;
 }
 
@@ -225,7 +241,7 @@ export function playWeek(game, rng = Math.random) {
  * 一場打完之後：依表現讓球員成長，然後擲骰看有沒有人受傷。
  * 投手投越多球越容易受傷 —— 這就是 500 球規則存在的理由。
  */
-function applyMatchOutcome(game, m, rng) {
+function applyMatchOutcome(game, m, rng, mods = null) {
   const byId = new Map(active(game.team.players).map((p) => [p.id, p]));
   const bat = new Map(m.home.batters.map((b) => [b.id, b]));
   const pit = new Map(m.home.pitchers.map((p) => [p.id, p]));
@@ -243,7 +259,7 @@ function applyMatchOutcome(game, m, rng) {
     if (total > 0.05) grew.push({ name: p.name, gains, total });
 
     const pitches = pit.get(id)?.pitches || 0;
-    if (rng() < matchInjuryChance(p, pitches)) {
+    if (rng() < matchInjuryChance(p, pitches) * (mods?.matchInjury ?? 1)) {
       injured.push({ ...injure(p, rng), pitches });
     }
   });
@@ -266,6 +282,13 @@ function isLastWeekOfPhase(year, w) {
 export function takeAction(game, actionId, rng = Math.random) {
   const w = currentWeek(game);
   if (!w) return null;
+  // 還有沒選的三選一或事件，先擋著
+  if (game.pendingDraft || game.pendingEvent) return null;
+
+  const mods = modifiers(game);
+  const boost = game.weekBoost || null;
+  game.weekBoost = null;
+
   const log = { week: w.abs, month: w.month, event: w.event, kind: w.kind };
 
   if (w.kind === 'match') {
@@ -275,7 +298,10 @@ export function takeAction(game, actionId, rng = Math.random) {
     log.efficiency = eff;
     log.morale = moraleLabel(game.morale.weeksSinceMatch);
     if (actionId === 'practice') {
-      game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'practice');
+      game.morale.weeksSinceMatch = Math.max(
+        PRACTICE_FLOOR,
+        advance(game.morale.weeksSinceMatch, 'practice') - mods.moraleRewind,
+      );
       log.action = '練習賽';
     } else if (actionId?.startsWith('scout:')) {
       const c = game.scouting?.candidates.find((x) => x.id === actionId.slice(6));
@@ -289,12 +315,16 @@ export function takeAction(game, actionId, rng = Math.random) {
       // 養傷中的人不參加練習
       const players = healthy(active(game.team.players));
       const before = snapshotGrades(players);
-      const results = trainTeam(players, actionId, eff);
+      const gainMult = mods.trainGain * (boost?.gain ?? 1);
+      const results = trainTeam(players, actionId, eff, {
+        gain: gainMult, weights: mods.weights,
+      });
       log.gains = summariseGains(players, results, before);
+      log.boost = boost ? gainMult : null;
       // 練習也會受傷，只是機率低很多
+      const injMult = mods.trainInjury * (boost?.injury ?? 1);
       log.injured = players
-        .filter(() => true)
-        .flatMap((p) => (rng() < trainInjuryChance(p) ? [injure(p, rng)] : []));
+        .flatMap((p) => (rng() < trainInjuryChance(p) * injMult ? [injure(p, rng)] : []));
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'train');
       log.action = menuById(actionId).name;
       log.trained = true;
@@ -323,7 +353,7 @@ export function takeAction(game, actionId, rng = Math.random) {
   }
 
   // 每過一週，養傷的人就好一點
-  log.returned = healWeek(game.team.players);
+  log.returned = healWeek(game.team.players, mods.healSpeed);
 
   step(game, rng);
   return log;
@@ -411,8 +441,21 @@ function step(game, rng) {
 
   // 走到招生視窗的第一週，就把這一年的名單生出來
   const nw = currentWeek(game);
-  if (nw?.scoutOpen && !game.scouting) {
+  if (!nw) return;
+  if (nw.scoutOpen && !game.scouting) {
     game.scouting = { candidates: generateCandidates(game, rng) };
+  }
+
+  // roguelike：三選一、突發事件、作戰
+  if (nw.draft && !game.pendingDraft) {
+    game.pendingDraft = drawPerks(game, 3, rng);
+  }
+  if (nw.kind === 'training' && !game.pendingEvent) {
+    game.pendingEvent = rollEvent(game, rng);
+  }
+  if (nw.kind === 'match') {
+    game.tactic = null;
+    game.tacticChoices = drawTactics(rng);
   }
 }
 
@@ -428,7 +471,8 @@ function rollOver(game, rng) {
 
   // 每年四月本來就會有一批自己來報名的普通學生。
   // 招生是為了拿到「好的」，不是為了湊人數。
-  const walkOnCount = 5 + Math.floor(rng() * 4);
+  const mods = modifiers(game);
+  const walkOnCount = 5 + Math.floor(rng() * 4) + mods.walkOnBonus;
   const walkOns = Array.from({ length: walkOnCount }, () => createPlayer({
     gradeYear: 1,
     talent: rng() < 0.75 ? 1 : 2,
@@ -438,12 +482,13 @@ function rollOver(game, rng) {
   const recruits = [...scouted, ...walkOns];
 
   // 部員上限 25 人。超過的話從最弱的開始退部
+  const limit = ROSTER_LIMIT + mods.rosterBonus;
   let all = addRecruits(players, recruits);
   let quit = [];
-  if (all.length > ROSTER_LIMIT) {
+  if (all.length > limit) {
     const sorted = [...all].sort((a, b) => overall(b) - overall(a));
-    quit = sorted.slice(ROSTER_LIMIT);
-    const keep = new Set(sorted.slice(0, ROSTER_LIMIT).map((p) => p.id));
+    quit = sorted.slice(limit);
+    const keep = new Set(sorted.slice(0, limit).map((p) => p.id));
     all = all.filter((p) => keep.has(p.id));
   }
 

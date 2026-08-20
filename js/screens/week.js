@@ -8,6 +8,9 @@ import { positionById } from '../data/abilities.js';
 import {
   fameOf, JOIN_THRESHOLD, candidateHint, growthName,
 } from '../rules/scouting.js';
+import {
+  perkById, tacticById, eventById, choosePerk, resolveEvent,
+} from '../rules/roguelike.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 
@@ -21,6 +24,74 @@ function moraleBox(game) {
       <b>${moraleLabel(c)}</b>
       <span class="morale__eff">練習效率 ${pct(eff)}</span>
       <span class="morale__hint">距離上一場正式比賽 ${c} 週</span>
+    </div>`;
+}
+
+/** 已經拿到的傳統 */
+function perkStrip(game) {
+  const list = (game.perks || []).map((id) => perkById(id)).filter(Boolean);
+  if (!list.length) return '';
+  const items = list.map((p) => `
+    <span class="perk"><b>${p.name}</b><em>${p.desc}</em></span>`).join('');
+  return `<div class="perks"><span class="perks__label">傳統</span>${items}</div>`;
+}
+
+/** 三選一：選到的傳統整局都有效 */
+function draftPanel(game) {
+  const ids = game.pendingDraft || [];
+  if (!ids.length) return '';
+  const cards = ids.map((id) => {
+    const p = perkById(id);
+    return `
+      <button type="button" class="card-pick" data-act="draft:${p.id}">
+        <b class="card-pick__name">${p.name}</b>
+        <span class="card-pick__desc">${p.desc}</span>
+      </button>`;
+  }).join('');
+  return `
+    <div class="draft">
+      <h3 class="draft__title">選一個傳統</h3>
+      <p class="draft__lead">選到的效果<strong>整局都有效</strong>，拿了就不能換。
+        一局只有 5 次機會。</p>
+      <div class="picks">${cards}</div>
+    </div>`;
+}
+
+/** 突發事件：兩個選項，各有好壞 */
+function eventPanel(game) {
+  const ev = eventById(game.pendingEvent);
+  if (!ev) return '';
+  const opts = ev.options.map((o, i) => `
+    <button type="button" class="card-pick card-pick--opt" data-act="event:${i}">
+      <b class="card-pick__name">${o.label}</b>
+      <span class="card-pick__desc">${o.hint}</span>
+    </button>`).join('');
+  return `
+    <div class="event">
+      <h3 class="event__title">${ev.title}</h3>
+      <p class="event__text">${ev.text}</p>
+      <div class="picks picks--two">${opts}</div>
+    </div>`;
+}
+
+/** 比賽週：開打前選一個作戰 */
+function tacticPanel(game) {
+  const ids = game.tacticChoices || [];
+  if (!ids.length) return '';
+  const cards = ids.map((id) => {
+    const t = tacticById(id);
+    const on = game.tactic === id;
+    return `
+      <button type="button" class="card-pick${on ? ' is-picked' : ''}" data-act="tactic:${t.id}">
+        <b class="card-pick__name">${t.name}</b>
+        <span class="card-pick__desc">${t.desc}</span>
+      </button>`;
+  }).join('');
+  return `
+    <div class="draft draft--tactic">
+      <h3 class="draft__title">這一週的作戰</h3>
+      <p class="draft__lead">只影響這一週的比賽。打完就換一批新的。</p>
+      <div class="picks">${cards}</div>
     </div>`;
 }
 
@@ -110,6 +181,14 @@ function lastResultBox(game) {
     </div>`;
   }
 
+  if (l.eventResult) {
+    const e = l.eventResult;
+    return `<div class="last last--plain">
+      <span class="last__head">突發事件：${e.title}</span>
+      <p class="last__note">你選了「<b>${e.choice}</b>」。${e.result}</p>
+    </div>`;
+  }
+
   if (l.scoutVisit) {
     return `<div class="last last--plain">
       <span class="last__head">上一週：${l.action}</span>
@@ -143,7 +222,8 @@ function lastResultBox(game) {
   return `
     <div class="last last--train">
       <span class="last__head">上一週：${l.action}
-        <em>效率 ${pct(l.efficiency)}</em></span>
+        <em>效率 ${pct(l.efficiency)}</em>
+        ${l.boost ? `<em class="boost">事件加成 ×${l.boost.toFixed(2)}</em>` : ''}</span>
       <div class="last__row">${deltas || '<span class="muted">沒什麼變化</span>'}</div>
       ${ups ? `<ul class="ups">${ups}${more}</ul>` : ''}
       ${(l.injured || []).length ? `<ul class="injs">${l.injured.map((x) => `
@@ -176,6 +256,11 @@ function logList(game) {
       return `<li class="log log--match"><span class="log__wk">#${l.week}</span>
         <span class="log__body"><b>${l.event}</b>${rs}</span></li>`;
     }
+    if (l.eventResult) {
+      return `<li class="log log--event"><span class="log__wk">#${l.week}</span>
+        <span class="log__body">${l.eventResult.title}
+        → <b>${l.eventResult.choice}</b></span></li>`;
+    }
     const extra = l.trained
       ? `<span class="log__eff">效率 ${pct(l.efficiency)}</span>` : '';
     return `<li class="log log--${l.kind}"><span class="log__wk">#${l.week}</span>
@@ -205,14 +290,25 @@ export function renderWeek(root, game, onChange) {
     return;
   }
 
+  // 三選一還沒選就什麼都不能做 —— 這是整局最重要的選擇
+  if (game.pendingDraft?.length) {
+    root.innerHTML = weekBar(game, w) + perkStrip(game) + draftPanel(game);
+    bindActions(root, game, onChange);
+    return;
+  }
+
+  const ready = !game.tacticChoices?.length || !!game.tactic;
+
   const body = w.kind === 'match'
-    ? `<div class="acts acts--match">
-         <button type="button" class="act act--go" data-act="__play">
-           <b>開始比賽</b><span>這一週要打 ${w.games.length} 場：${w.games.join('、')}</span>
+    ? `${tacticPanel(game)}
+       <div class="acts acts--match">
+         <button type="button" class="act act--go" data-act="__play" ${ready ? '' : 'disabled'}>
+           <b>${ready ? '開始比賽' : '先選一個作戰'}</b>
+           <span>這一週要打 ${w.games.length} 場：${w.games.join('、')}</span>
          </button>
        </div>`
     : w.kind === 'training'
-      ? actionButtons(game)
+      ? (game.pendingEvent ? eventPanel(game) : actionButtons(game))
       : `<div class="acts acts--match">
            <button type="button" class="act act--go" data-act="__next">
              <b>下一步</b><span>${w.event}</span>
@@ -220,20 +316,10 @@ export function renderWeek(root, game, onChange) {
          </div>`;
 
   root.innerHTML = `
-    <div class="weekbar">
-      <div class="weekbar__now">
-        <span class="weekbar__pos">第 ${game.cursor.year} 年　第 ${game.cursor.week} 週</span>
-        <h2 class="weekbar__event">${w.event}</h2>
-        <span class="weekbar__month">${w.month}
-          ・${w.eliminated ? '已淘汰，改成練習' : { match: '比賽週', training: '練習週', transition: '過場週' }[w.kind]}</span>
-      </div>
-      <div class="weekbar__str">
-        <b>${teamStrength(game.team.players)}</b><span>目前戰力</span>
-      </div>
-    </div>
-
+    ${weekBar(game, w)}
+    ${perkStrip(game)}
     ${lastResultBox(game)}
-    ${w.kind === 'training' ? moraleBox(game) : ''}
+    ${w.kind === 'training' && !game.pendingEvent ? moraleBox(game) : ''}
     ${body}
 
     ${injuryList(game)}
@@ -242,15 +328,54 @@ export function renderWeek(root, game, onChange) {
     ${logList(game)}`;
 
   bindGameCards(root);
+  bindActions(root, game, onChange);
+}
+
+function weekBar(game, w) {
+  const kind = { match: '比賽週', training: '練習週', transition: '過場週' }[w.kind];
+  return `
+    <div class="weekbar">
+      <div class="weekbar__now">
+        <span class="weekbar__pos">第 ${game.cursor.year} 年　第 ${game.cursor.week} 週</span>
+        <h2 class="weekbar__event">${w.event}</h2>
+        <span class="weekbar__month">${w.month}
+          ・${w.eliminated ? '已淘汰，改成練習' : kind}</span>
+      </div>
+      <div class="weekbar__str">
+        <b>${teamStrength(game.team.players)}</b><span>目前戰力</span>
+      </div>
+    </div>`;
+}
+
+/** 按鈕。三選一、事件、作戰不會讓時間往前走，其他的會 */
+function bindActions(root, game, onChange) {
+  const push = (log) => {
+    if (!log) return;
+    game.log.push(log);
+    if (game.log.length > 40) game.log = game.log.slice(-40);
+  };
 
   root.querySelectorAll('[data-act]').forEach((b) => {
     b.addEventListener('click', () => {
       const id = b.dataset.act;
-      const log = takeAction(game, id === '__play' || id === '__next' ? null : id);
-      if (log) {
-        game.log.push(log);
-        if (game.log.length > 40) game.log = game.log.slice(-40);
+
+      if (id.startsWith('draft:')) {
+        choosePerk(game, id.slice(6));
+        onChange();
+        return;
       }
+      if (id.startsWith('event:')) {
+        push(resolveEvent(game, Number(id.slice(6))));
+        onChange();
+        return;
+      }
+      if (id.startsWith('tactic:')) {
+        game.tactic = id.slice(7);
+        onChange();
+        return;
+      }
+
+      push(takeAction(game, id === '__play' || id === '__next' ? null : id));
       onChange();
     });
   });

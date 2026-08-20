@@ -65,7 +65,9 @@ export function buildYear(wins) {
     add({ phase, event, month, kind, conditional: false, canPractice: kind === 'training' });
 
   // ── 春天 ────────────────────────────────────────────
+  // draft: true 的週會跳出「傳統三選一」，那是 roguelike 的核心選擇
   plain('newterm', '開學 ／ 升上新年級', '4月初', 'transition');
+  w[w.length - 1].draft = true;
   plain('newterm', '新生入學（新隊員加入）', '4月中', 'transition');
   plain('newterm', '新生測驗 ／ 決定守備位置', '4月底', 'training');
 
@@ -99,6 +101,7 @@ export function buildYear(wins) {
   // 所以名單上要把他們拿掉。
   plain('handover', '三年級退隊 ／ 組新隊伍', '8月底', 'transition');
   w[w.length - 1].retireSeniors = true;
+  w[w.length - 1].draft = true;
   plain('handover', '選新隊長 ／ 重排守備位置', '9月初', 'transition');
 
   matchPhase('autumn', '秋季縣大賽', AUTUMN_ROUNDS, '9月底', { alwaysPlayFirst: true }).forEach(add);

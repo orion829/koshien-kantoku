@@ -14,6 +14,7 @@
 import { POSITIONS, positionById } from '../data/abilities.js';
 import { randomOpponentName } from '../data/schools.js';
 import { createPlayer, isPitcher, overall } from './player.js';
+import { baseMods, rollOpponentTrait } from './roguelike.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const has = (p, id) => p.skills?.includes(id);
@@ -41,7 +42,9 @@ export function generateOpponent(strength, rng = Math.random) {
     });
   });
 
-  return { name: randomOpponentName(strength, rng), players, strength };
+  // 每支對手學校都有一個特色 —— 同樣的戰力，打起來不一樣
+  const { trait, mods } = rollOpponentTrait(rng);
+  return { name: randomOpponentName(strength, rng), players, strength, trait, mods };
 }
 
 function teamRating(players) {
@@ -102,8 +105,8 @@ const batRating = (p) => p.abilities.meet * 0.65 + p.abilities.power * 0.35;
 // ── 打席 ────────────────────────────────────────────────
 
 /** 投手的球質。投球數越多越掉 */
-function pitcherStuff(p, pitches) {
-  const limit = 70 + p.abilities.stamina * 0.9;
+function pitcherStuff(p, pitches, staminaMult = 1) {
+  const limit = (70 + p.abilities.stamina * 0.9) * staminaMult;
   const over = Math.max(0, pitches - limit);
   let fatigue = 1 - over / 120;
   if (has(p, 'ironArm')) fatigue += over / 300;
@@ -133,18 +136,23 @@ const OUT = 'out';
  * kind: 'bb' 四壞 | 'k' 三振 | 'single' | 'double' | 'triple' | 'hr' | 'out' | 'error'
  */
 function atBat(batter, pitcher, pitches, defence, ctx, rng) {
-  const stuff = pitcherStuff(pitcher, pitches) + ctx.pitchForm;
+  // om = 進攻方的加成、dm = 防守方的加成（傳統 ＋ 作戰 ＋ 對手特色）
+  const om = ctx.off;
+  const dm = ctx.def;
+  const stuff = pitcherStuff(pitcher, pitches, dm.staminaMult) + ctx.pitchForm + dm.stuff;
   const b = batter.abilities;
 
-  // 關鍵時刻的加成 ＋ 今天的狀態
-  let meet = b.meet + ctx.batForm;
-  let power = b.power + ctx.batForm;
+  // 關鍵時刻的加成 ＋ 今天的狀態 ＋ 加成表
+  let meet = b.meet + ctx.batForm + om.meet;
+  let power = b.power + ctx.batForm + om.power;
+  if (ctx.trailing) { meet += om.comeback; power += om.comeback; }
+  if (ctx.inning <= 2) { meet += om.early; power += om.early; }
   if (ctx.scoring && has(batter, 'clutch')) { meet += 8; power += 8; }
   if (ctx.loaded && has(batter, 'bases')) { meet += 10; power += 10; }
   if (ctx.scoring && has(pitcher, 'vsPinch')) meet -= 8;
 
   // 1) 四壞
-  let bb = 0.085 + (55 - pitcher.abilities.control) * 0.0022;
+  let bb = 0.085 + (55 - (pitcher.abilities.control + dm.control)) * 0.0022 + om.eye;
   if (has(pitcher, 'walks')) bb += 0.035;
   if (has(batter, 'eye')) bb += 0.03;
   const nPitches = () => 2 + Math.floor(rng() * 3);
@@ -159,13 +167,14 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
 
   // 3) 打進場內：是不是安打
   const p = nPitches();
-  let hit = 0.358 + (meet - stuff) * 0.0032 - (defence + ctx.defForm - 50) * 0.0020;
+  const def = defence + ctx.defForm + dm.defence;
+  let hit = 0.366 + (meet - stuff) * 0.0032 - (def - 50) * 0.0020;
   if (has(batter, 'sprayHit')) hit += 0.02;
   if (has(pitcher, 'heavy')) hit -= 0.02;
   if (has(pitcher, 'light')) hit += 0.025;
   if (rng() >= clamp(hit, 0.12, 0.52)) {
     // 出局，但守備可能失誤
-    const err = clamp(0.055 - (defence - 50) * 0.0016, 0.008, 0.14);
+    const err = clamp(0.055 - (def - 50) * 0.0016, 0.008, 0.14);
     return rng() < err ? { kind: 'error', pitches: p } : { kind: OUT, pitches: p };
   }
 
@@ -175,7 +184,10 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   if (has(pitcher, 'heavy')) hr -= 0.012;
   if (has(pitcher, 'light')) hr += 0.02;
   if (rng() < clamp(hr, 0.004, 0.22)) return { kind: 'hr', pitches: p };
-  const extra = clamp(0.055 + (power - 45) * 0.0016 + (b.speed - 45) * 0.0012, 0.02, 0.24);
+  const extra = clamp(
+    0.055 + (power - 45) * 0.0016 + (b.speed + om.speed - 45) * 0.0012 + om.extraBase,
+    0.02, 0.3,
+  );
   if (rng() < extra) {
     return rng() < 0.16 ? { kind: 'triple', pitches: p } : { kind: 'double', pitches: p };
   }
@@ -214,6 +226,7 @@ export function playMatch(home, away, rng = Math.random, { maxInnings = 12, merc
     pitcher: t.starter,
     bullpen: [...t.bullpen],
     defence: defenceRating(t.order),
+    mods: t.mods || baseMods(),
     bat: new Map(t.order.map(({ player, position }) => [player.id, newBatLine(player, position)])),
     pit: new Map([[t.starter.id, newPitLine(t.starter)]]),
     runs: [],
@@ -275,7 +288,7 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
 
     // 換投：投球數超過太多就換人
     const pl = def.pit.get(def.pitcher.id);
-    const limit = 70 + def.pitcher.abilities.stamina * 0.9;
+    const limit = (70 + def.pitcher.abilities.stamina * 0.9) * def.mods.staminaMult;
     if (pl.pitches > limit && def.bullpen.length) {
       def.pitcher = def.bullpen.shift();
       if (!def.pit.has(def.pitcher.id)) def.pit.set(def.pitcher.id, newPitLine(def.pitcher));
@@ -288,6 +301,10 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
       batForm: off.form,
       pitchForm: def.form,
       defForm: def.form,
+      off: off.mods,
+      def: def.mods,
+      inning,
+      trailing: off.total < def.total,
     };
     const r = atBat(batter, def.pitcher, pit.pitches, def.defence, ctx, rng);
     pit.pitches += r.pitches;
@@ -327,7 +344,8 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
         // 有人在三壘、不到兩出局 → 高飛犧牲打
         if (bases[2] && outs < 2 && rng() < 0.36) {
           scoreRunner(bases[2]); bases[2] = null; rbi += 1;
-        } else if (bases[0] && outs < 2 && rng() < (has(batter, 'doublePlay') ? 0.22 : 0.12)) {
+        } else if (bases[0] && outs < 2
+          && rng() < (has(batter, 'doublePlay') ? 0.22 : 0.12) + off.mods.dp) {
           bases[0] = null; outs += 1;   // 雙殺
         }
         outs += 1;
@@ -337,7 +355,10 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
         bl.ab += 1;
         advance(1, 0);
         break;
-      case 'single': bl.ab += 1; bl.h += 1; pit.h += 1; advance(rng() < 0.42 ? 2 : 1, 0); break;
+      case 'single':
+        bl.ab += 1; bl.h += 1; pit.h += 1;
+        advance(rng() < 0.42 + off.mods.advance ? 2 : 1, 0);
+        break;
       case 'double': bl.ab += 1; bl.h += 1; pit.h += 1; advance(2, 1); break;
       case 'triple': bl.ab += 1; bl.h += 1; pit.h += 1; advance(3, 2); break;
       case 'hr': {

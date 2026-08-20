@@ -1,9 +1,10 @@
 import { byId } from './data/prefectures.js';
 import { buildRun } from './data/calendar.js';
 import { createRoster } from './rules/roster.js';
+import { drawPerks } from './rules/roguelike.js';
 
-const SAVE_KEY = 'koshien-kantoku:save:v7';
-export const SAVE_VERSION = 7;
+const SAVE_KEY = 'koshien-kantoku:save:v8';
+export const SAVE_VERSION = 8;
 
 /** 從開始畫面的輸入建立一份新的遊戲存檔 */
 export function createGame({ managerName, schoolName, prefectureId }) {
@@ -48,6 +49,16 @@ export function createGame({ managerName, schoolName, prefectureId }) {
     progress: [1, 2, 3].map(() => ({
       regional: null, koshien: null, autumn: null, autumnArea: null, senbatsu: null,
     })),
+
+    // ── roguelike ────────────────────────────────
+    perks: [],                    // 已經拿到的傳統
+    pendingDraft: drawPerks({ perks: [] }, 3),   // 上任第一件事：三選一
+    pendingEvent: null,           // 還沒處理的突發事件
+    recentEvents: [],             // 最近出過的事件，避免一直重複
+    weekBoost: null,              // 事件帶來的「這一週」加成
+    tactic: null,                 // 這一週的作戰
+    tacticChoices: null,          // 這一週可以選的三個作戰
+    extraFame: 0,                 // 事件加的注目度
 
     // 最近做過的事，給畫面顯示用（只留最後 40 筆）
     log: [],

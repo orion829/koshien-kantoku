@@ -108,11 +108,11 @@ export const healthy = (players) => players.filter((p) => !isInjured(p));
 /**
  * 過一週。所有傷勢的剩餘週數減一，回來的人會被列出來。
  */
-export function healWeek(players) {
+export function healWeek(players, speed = 1) {
   const returned = [];
   players.forEach((p) => {
     if (!isInjured(p)) return;
-    p.injury.weeks -= 1;
+    p.injury.weeks -= speed;
     if (p.injury.weeks <= 0) {
       returned.push({ name: p.name, label: p.injury.name });
       p.injury = null;

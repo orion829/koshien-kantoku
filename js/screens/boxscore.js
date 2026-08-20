@@ -113,6 +113,16 @@ function growthBlock(r) {
     ${hurt ? `<h4 class="bs__h bs__h--bad">受傷</h4><ul class="injs">${hurt}</ul>` : ''}`;
 }
 
+/** 對手的特色 ＋ 我方這場用的作戰 */
+function matchup(r) {
+  const t = r.trait
+    ? `<span class="trait"><b>${r.opponent}</b>${r.trait.name}
+        <em>${r.trait.desc}</em></span>` : '';
+  const tac = r.tacticName
+    ? `<span class="trait trait--ours"><b>我方作戰</b>${r.tacticName}</span>` : '';
+  return t || tac ? `<div class="matchup">${t}${tac}</div>` : '';
+}
+
 /** 一場比賽的完整卡片 */
 export function gameCard(r, index, open) {
   const won = r.won;
@@ -129,6 +139,7 @@ export function gameCard(r, index, open) {
         ${called ? `<span class="game__note">${called}</span>` : ''}
       </button>
       <div class="game__body"${open ? '' : ' hidden'}>
+        ${matchup(r)}
         ${lineScore(r)}
         <h4 class="bs__h">打線</h4>
         ${battingTable(r.box.us)}

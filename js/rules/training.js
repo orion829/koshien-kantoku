@@ -81,11 +81,14 @@ export function gainFor(player, statId, weight, efficiency) {
  * 讓一個球員練一週。會直接改動 player.abilities。
  * 回傳這次長了哪些能力（給畫面顯示用）。
  */
-export function trainPlayer(player, menu, efficiency = 1) {
+export function trainPlayer(player, menu, efficiency = 1, mods = null) {
   const gains = {};
+  const bonusWeights = mods?.weights || {};
+  const gainMult = mods?.gain ?? 1;
   for (const statId of [...BATTER_IDS, ...PITCHER_IDS]) {
-    const weight = PASSIVE_WEIGHT + (menu.weights[statId] || 0);
-    const g = gainFor(player, statId, weight, efficiency);
+    const weight = PASSIVE_WEIGHT + (menu.weights[statId] || 0)
+      + (menu.weights[statId] ? (bonusWeights[statId] || 0) : 0);
+    const g = gainFor(player, statId, weight, efficiency) * gainMult;
     if (g <= 0) continue;
     player.abilities[statId] = Math.min(capOf(player, statId), player.abilities[statId] + g);
     gains[statId] = g;
@@ -135,8 +138,8 @@ export function growFromMatch(player, bat, pit) {
 }
 
 /** 全隊練一週 */
-export function trainTeam(players, menuId, efficiency = 1) {
+export function trainTeam(players, menuId, efficiency = 1, mods = null) {
   const menu = menuById(menuId);
   if (!menu) throw new Error(`沒有這個練習項目: ${menuId}`);
-  return players.map((p) => ({ id: p.id, gains: trainPlayer(p, menu, efficiency) }));
+  return players.map((p) => ({ id: p.id, gains: trainPlayer(p, menu, efficiency, mods) }));
 }

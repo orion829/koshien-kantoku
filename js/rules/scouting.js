@@ -10,6 +10,7 @@
 import { createPlayer } from './player.js';
 import { randomPersonName } from '../data/names.js';
 import { POSITIONS, GROWTH_TYPES } from '../data/abilities.js';
+import { modifiers } from './roguelike.js';
 
 /** 好感度到這裡就會入學 */
 export const JOIN_THRESHOLD = 60;
@@ -29,7 +30,8 @@ const FAME = {
  * 這是贏球最重要的長期回報。
  */
 export function fameOf(game) {
-  let fame = 0;
+  // 傳統和突發事件也會加注目度
+  let fame = (game.extraFame || 0) + modifiers(game).fame;
   game.progress.forEach((p) => {
     if (p.regional?.champion) fame += FAME.koshienEntry;
     else if (p.regional?.lastRound === '冠軍賽') fame += FAME.regionalFinal;
@@ -56,8 +58,9 @@ function rollTalent(scoutPool, fame, rng) {
  * 隊上缺什麼位置，名單就會多出現那個位置的人。
  */
 export function generateCandidates(game, rng = Math.random) {
+  const mods = modifiers(game);
   const fame = fameOf(game);
-  const n = 5 + Math.floor(rng() * 3) + (fame > 25 ? 1 : 0);
+  const n = 5 + Math.floor(rng() * 3) + (fame > 25 ? 1 : 0) + mods.scoutExtra;
 
   // 隊上缺的位置優先出現
   const have = {};
@@ -87,7 +90,7 @@ export function generateCandidates(game, rng = Math.random) {
       growthType,
       interest,
       visits: 0,
-      known: false,      // 去看過才知道他的成長期
+      known: mods.scoutKnown,   // 有「伯樂」的話一開始就看得到
     };
   });
 }

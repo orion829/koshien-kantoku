@@ -1177,3 +1177,145 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
   padding: 0 6px;
   margin-top: 5px;
 }
+
+
+/* ---------- roguelike：傳統・三選一・事件・作戰 ---------- */
+
+.perks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.perks__label {
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.perk {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(217, 138, 74, .38);
+  border-radius: 999px;
+  padding: 2px 11px;
+  max-width: 100%;
+}
+
+.perk b { font-size: 12px; font-weight: 600; color: var(--accent); }
+
+.perk em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft, .event {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 18px 18px 20px;
+  margin: 0 0 18px;
+}
+
+.draft { border-color: rgba(217, 138, 74, .45); }
+
+.draft__title, .event__title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: .05em;
+}
+
+.draft__title { color: var(--accent); }
+
+.draft__lead, .event__text {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.event__text { color: var(--text); }
+
+.picks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.picks--two { grid-template-columns: repeat(2, 1fr); }
+
+.card-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color .12s, background .12s, transform .12s;
+}
+
+.card-pick:hover {
+  border-color: var(--accent);
+  background: #1f2d34;
+  transform: translateY(-2px);
+}
+
+.card-pick.is-picked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.card-pick__name { font-size: 15px; font-weight: 600; letter-spacing: .04em; }
+.card-pick.is-picked .card-pick__name { color: var(--accent); }
+
+.card-pick__desc { font-size: 12px; line-height: 1.6; color: var(--muted); }
+
+.card-pick--opt .card-pick__name { color: var(--blue); }
+
+/* 對手特色 */
+
+.matchup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.trait {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--danger);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.trait b { font-weight: 500; color: var(--muted); }
+.trait em { font-style: normal; font-size: 11px; color: var(--muted); }
+.trait--ours { border-left-color: var(--green); }
+
+.log--event .log__body { color: var(--blue); }
+
+.boost { color: var(--green); font-style: normal; margin-left: 8px; }
+
+@media (max-width: 620px) {
+  .picks, .picks--two { grid-template-columns: 1fr; }
+  .perk em { display: none; }
+}
