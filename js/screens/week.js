@@ -9,7 +9,7 @@ import {
   fameOf, JOIN_THRESHOLD, candidateHint, growthName,
 } from '../rules/scouting.js';
 import {
-  perkById, tacticById, eventById, choosePerk, resolveEvent,
+  perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer,
 } from '../rules/roguelike.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -71,6 +71,34 @@ function eventPanel(game) {
       <h3 class="event__title">${ev.title}</h3>
       <p class="event__text">${ev.text}</p>
       <div class="picks picks--two">${opts}</div>
+    </div>`;
+}
+
+/** 轉學生：一年一定會遇到一次，兩個選項都會讓他入隊 */
+function transferPanel(game) {
+  const t = game.pendingTransfer;
+  if (!t) return '';
+  const { player: p, superstar } = t;
+  const pos = positionById(p.position)?.short || '';
+  const stars = '★'.repeat(p.talent) + '☆'.repeat(5 - p.talent);
+  return `
+    <div class="event event--transfer${superstar ? ' event--superstar' : ''}">
+      <h3 class="event__title">${superstar ? '轉學生降臨？！' : '轉來一個轉學生'}</h3>
+      <p class="event__text">
+        <b>${p.name}</b>（${pos}・${p.gradeYear}年級）從別的學校轉來，說想加入棒球社。
+        天賦 <span class="cand__talent">${stars}</span>
+        ${superstar ? '<span class="superstar-tag">傳說中的等級</span>' : ''}
+      </p>
+      <div class="picks picks--two">
+        <button type="button" class="card-pick card-pick--opt" data-act="transfer:warm">
+          <b class="card-pick__name">熱烈歡迎</b>
+          <span class="card-pick__desc">士氣變好</span>
+        </button>
+        <button type="button" class="card-pick card-pick--opt" data-act="transfer:quiet">
+          <b class="card-pick__name">照常訓練</b>
+          <span class="card-pick__desc">全隊打擊小漲一點</span>
+        </button>
+      </div>
     </div>`;
 }
 
@@ -189,6 +217,19 @@ function lastResultBox(game) {
     </div>`;
   }
 
+  if (l.transferResult) {
+    const t = l.transferResult;
+    return `<div class="last last--win${t.superstar ? ' last--superstar' : ''}">
+      <span class="last__head">${l.event}</span>
+      <p class="last__note">
+        <b>${t.name}</b> ${positionById(t.position)?.short || ''}・${t.gradeYear}年級
+        <span class="cand__talent">${'★'.repeat(t.talent)}${'☆'.repeat(5 - t.talent)}</span>
+        ${t.superstar ? '<span class="superstar-tag">傳說中的等級</span>' : ''}
+        加入球隊了。${t.note}
+      </p>
+    </div>`;
+  }
+
   if (l.scoutVisit) {
     return `<div class="last last--plain">
       <span class="last__head">上一週：${l.action}</span>
@@ -261,6 +302,11 @@ function logList(game) {
         <span class="log__body">${l.eventResult.title}
         → <b>${l.eventResult.choice}</b></span></li>`;
     }
+    if (l.transferResult) {
+      return `<li class="log log--transfer"><span class="log__wk">#${l.week}</span>
+        <span class="log__body">${l.event}
+        → <b>${l.transferResult.name}</b></span></li>`;
+    }
     const extra = l.trained
       ? `<span class="log__eff">效率 ${pct(l.efficiency)}</span>` : '';
     return `<li class="log log--${l.kind}"><span class="log__wk">#${l.week}</span>
@@ -308,7 +354,8 @@ export function renderWeek(root, game, onChange) {
          </button>
        </div>`
     : w.kind === 'training'
-      ? (game.pendingEvent ? eventPanel(game) : actionButtons(game))
+      ? (game.pendingTransfer ? transferPanel(game)
+        : game.pendingEvent ? eventPanel(game) : actionButtons(game))
       : `<div class="acts acts--match">
            <button type="button" class="act act--go" data-act="__next">
              <b>下一步</b><span>${w.event}</span>
@@ -319,7 +366,7 @@ export function renderWeek(root, game, onChange) {
     ${weekBar(game, w)}
     ${perkStrip(game)}
     ${lastResultBox(game)}
-    ${w.kind === 'training' && !game.pendingEvent ? moraleBox(game) : ''}
+    ${w.kind === 'training' && !game.pendingEvent && !game.pendingTransfer ? moraleBox(game) : ''}
     ${body}
 
     ${injuryList(game)}
@@ -366,6 +413,11 @@ function bindActions(root, game, onChange) {
       }
       if (id.startsWith('event:')) {
         push(resolveEvent(game, Number(id.slice(6))));
+        onChange();
+        return;
+      }
+      if (id.startsWith('transfer:')) {
+        push(resolveTransfer(game, id.slice(9)));
         onChange();
         return;
       }

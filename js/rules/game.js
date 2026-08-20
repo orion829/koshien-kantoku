@@ -25,10 +25,11 @@ import {
 } from './scouting.js';
 import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
+  pickTransferWeek, rollTransferStudent, resolveTransfer,
 } from './roguelike.js';
 
 export {
-  choosePerk, resolveEvent, drawTactics, modifiers, matchMods,
+  choosePerk, resolveEvent, drawTactics, modifiers, matchMods, resolveTransfer,
   PERKS, perkById, TACTICS, tacticById, eventById,
 } from './roguelike.js';
 
@@ -283,7 +284,7 @@ export function takeAction(game, actionId, rng = Math.random) {
   const w = currentWeek(game);
   if (!w) return null;
   // 還有沒選的三選一或事件，先擋著
-  if (game.pendingDraft || game.pendingEvent) return null;
+  if (game.pendingDraft || game.pendingEvent || game.pendingTransfer) return null;
 
   const mods = modifiers(game);
   const boost = game.weekBoost || null;
@@ -446,12 +447,18 @@ function step(game, rng) {
     game.scouting = { candidates: generateCandidates(game, rng) };
   }
 
-  // roguelike：三選一、突發事件、作戰
+  // roguelike：三選一、突發事件、轉學生、作戰
   if (nw.draft && !game.pendingDraft) {
     game.pendingDraft = drawPerks(game, 3, rng);
   }
-  if (nw.kind === 'training' && !game.pendingEvent) {
-    game.pendingEvent = rollEvent(game, rng);
+  if (nw.kind === 'training') {
+    // 這一年抽到的那一週，轉學生優先，那週就不跳一般事件了
+    if (game.transferWeekIndex === game.cursor.week - 1 && !game.pendingTransfer) {
+      game.pendingTransfer = rollTransferStudent(game, rng);
+      game.transferWeekIndex = -1;
+    } else if (!game.pendingEvent) {
+      game.pendingEvent = rollEvent(game, rng);
+    }
   }
   if (nw.kind === 'match') {
     game.tactic = null;
@@ -465,6 +472,9 @@ function step(game, rng) {
  */
 function rollOver(game, rng) {
   const { players, graduated } = advanceYear(game.team.players);
+
+  // 這一年的轉學生要在哪一週出現，先抽好
+  game.transferWeekIndex = pickTransferWeek(game.schedule[game.cursor.year - 1], rng);
 
   const scouted = game.pendingRecruits || [];
   game.pendingRecruits = null;

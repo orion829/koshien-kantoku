@@ -63,7 +63,7 @@ head('比賽：數字要接近真實的高中棒球');
 }
 
 // ── 1. 士氣與練習效率 ───────────────────────────────────
-head('士氣：被淘汰之後最多只能維持 0.70，回不到 100%');
+head('士氣：被淘汰之後最多只能維持 0.65 左右，回不到 100%');
 {
   const rep = (cycle, n) => Array.from({ length: n }, (_, i) => cycle[i % cycle.length]);
   const rows = [['都不打練習賽', ['train']]];
@@ -163,7 +163,7 @@ head('天賦：練滿三年後，★1 應該只有 D，★5 應該摸得到 A〜
 }
 
 // ── 5. 跑完一整局 ───────────────────────────────────────
-head('整局：接手時的一年級，第3年決勝時應該接近 C（等於自然生成的三年級）');
+head('整局：接手時的一年級，主練的那項能力（打擊）第3年應該接近 C');
 {
   function runOnce(menuPlan) {
     const weeks = cal.buildRun(6);
@@ -287,12 +287,14 @@ head('作戰與傳統：每個都要有用，但不能有一個獨大（+1〜+8p
   console.log('  ※ 穩紮穩打是負的沒關係，它換到的是「不受傷」');
 }
 
-head('一整局：三選一 5 次、事件約 6 次，而且不能當掉');
+head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都有，而且不能當掉');
 {
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
   let crash = 0;
   let drafts = 0;
   let events = 0;
+  let transfers = 0;
+  let superstars = 0;
   const strengths = [];
 
   for (let n = 0; n < 40; n += 1) {
@@ -301,9 +303,15 @@ head('一整局：三選一 5 次、事件約 6 次，而且不能當掉');
     });
     try {
       let guard = 0;
-      while (!G.isRunOver(g) && guard < 300) {
+      while (!G.isRunOver(g) && guard < 400) {
         guard += 1;
         if (g.pendingDraft?.length) { drafts += 1; RG.choosePerk(g, pick(g.pendingDraft)); continue; }
+        if (g.pendingTransfer) {
+          transfers += 1;
+          if (g.pendingTransfer.superstar) superstars += 1;
+          RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet');
+          continue;
+        }
         if (g.pendingEvent) { events += 1; RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
         if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
         const w = G.currentWeek(g);
@@ -320,7 +328,9 @@ head('一整局：三選一 5 次、事件約 6 次，而且不能當掉');
   strengths.sort((a, b) => a - b);
   console.log(`  跑完 ${strengths.length} 局　當掉 ${crash} 次（要是 0）`);
   console.log(`  每局三選一 ${(drafts / 40).toFixed(1)} 次（要是 5.0）`
-    + `　突發事件 ${(events / 40).toFixed(1)} 次（7 左右）`);
+    + `　轉學生 ${(transfers / 40).toFixed(1)} 次（要是 3.0）`
+    + `　超神轉學生 ${superstars} / ${transfers}（機率設定 2.5%）`);
+  console.log(`  每局突發事件 ${(events / 40).toFixed(1)} 次`);
   console.log(`  亂玩的最終戰力 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
     + `（認真玩要明顯更高）`);
 }

@@ -16,7 +16,7 @@ const BATTER_IDS = BATTER_STATS.map((s) => s.id);
 const PITCHER_IDS = PITCHER_STATS.map((s) => s.id);
 
 /** 權重 1.0、效率滿、天賦3、成長期普通、能力 45 時，一週長多少 */
-export const BASE_GAIN = 4.3;
+export const BASE_GAIN = 3.5;
 
 /**
  * 基礎成長：不管你挑什麼項目，每一項能力都會長一點點。
@@ -117,21 +117,21 @@ export function growFromMatch(player, bat, pit) {
   };
 
   if (bat) {
-    add('meet', bat.h * 2.6 + bat.rbi * 0.8);
-    add('power', (bat.hr * 4.5) + Math.max(0, bat.h - bat.hr) * 0.65);
-    add('speed', bat.r * 0.8);
+    add('meet', bat.h * 2.1 + bat.rbi * 0.65);
+    add('power', (bat.hr * 3.6) + Math.max(0, bat.h - bat.hr) * 0.52);
+    add('speed', bat.r * 0.65);
     // 有上場守備就有守備經驗
-    add('field', 1.3);
-    add('catch', 1.05);
+    add('field', 1.05);
+    add('catch', 0.85);
   }
 
   if (pit) {
     const innings = pit.outs / 3;
-    add('stamina', innings * 0.33);
-    add('breaking', pit.k * 0.25);
+    add('stamina', innings * 0.27);
+    add('breaking', pit.k * 0.2);
     // 四壞少才練得到控球
-    add('control', Math.max(0, innings * 0.42 - pit.bb * 0.3));
-    add('velocity', innings * 0.11);
+    add('control', Math.max(0, innings * 0.34 - pit.bb * 0.24));
+    add('velocity', innings * 0.09);
   }
 
   return gains;

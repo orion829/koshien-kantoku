@@ -1,11 +1,12 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成四種：
+// 這個檔案放「每一局都不一樣」的東西。分成五種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
-//   2. 突發事件 練習週有機率跳出來，兩個選項各有好壞
+//   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
 //   3. 作戰   比賽週開打前三選一，只影響這一週的比賽
 //   4. 對手特色 每支對手學校都有一個特色，不是每場都一樣
+//   5. 轉學生 一年一定會遇到一個，隨機年級，極低機率是超神等級
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
@@ -13,7 +14,9 @@
 import { createPlayer } from './player.js';
 import { addRecruits, active } from './roster.js';
 import { injure } from './injury.js';
-import { MAX_ABILITY } from '../data/abilities.js';
+import {
+  MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, skillsFor, skillById,
+} from '../data/abilities.js';
 
 // ── 加成表 ──────────────────────────────────────────────
 
@@ -433,12 +436,160 @@ export const EVENTS = [
       },
     ],
   },
+  {
+    id: 'cold',
+    title: '有人感冒了',
+    text: '一早就聽到咳嗽聲，臉色也不太好。',
+    options: [
+      {
+        label: '讓他請假',
+        hint: '那個人休息 1 週，但不會傳給別人',
+        effect: (game, rng) => {
+          const p = pickOne(canPlay(game), rng);
+          if (!p) return '結果隊上沒人。';
+          p.injury = {
+            severity: 'light', name: '感冒', cause: '著涼',
+            weeks: 1, totalWeeks: 1, drop: 0, permanent: 0,
+          };
+          return `${p.name} 請假一週在家休息。`;
+        },
+      },
+      {
+        label: '硬撐著練',
+        hint: '這週容易傳染，受傷（生病）機率變高',
+        effect: (game) => {
+          game.weekBoost = { gain: 1, injury: 1.6 };
+          return '他還是咬牙練完了，但旁邊的人開始有點擔心自己會不會也中鏢。';
+        },
+      },
+    ],
+  },
+  {
+    id: 'festival',
+    title: '學校運動會',
+    text: '今天全校都在操場上，班際大隊接力吵得很熱鬧。',
+    options: [
+      {
+        label: '全隊下去參加',
+        hint: '士氣變好，但這週練習打折',
+        effect: (game) => {
+          cheerUp(game, 4);
+          game.weekBoost = { gain: 0.6, injury: 1 };
+          return '球隊代表班上拿了接力冠軍，士氣整個衝上來。';
+        },
+      },
+      {
+        label: '缺席，照常練球',
+        hint: '這週成長 +10%，但同學有點不諒解',
+        effect: (game) => {
+          game.weekBoost = { gain: 1.1, injury: 1 };
+          game.morale.weeksSinceMatch += 2;
+          return '空蕩蕩的球場只有你們在練習，感覺有點孤單。';
+        },
+      },
+    ],
+  },
+  {
+    id: 'newspaper',
+    title: '地方報紙來採訪',
+    text: '記者說想寫一篇「無名球隊的挑戰」。',
+    options: [
+      {
+        label: '大方受訪',
+        hint: '注目度 +4',
+        effect: (game) => {
+          game.extraFame = (game.extraFame || 0) + 4;
+          return '隔天報紙上真的登出來了，隊員們剪下來貼在休息室。';
+        },
+      },
+      {
+        label: '婉拒，專心練習',
+        hint: '這週成長 +8%',
+        effect: (game) => {
+          game.weekBoost = { gain: 1.08, injury: 1 };
+          return '你說：「等我們打出成績再說。」';
+        },
+      },
+    ],
+  },
+  {
+    id: 'uniform',
+    title: '球衣舊到快看不出隊名',
+    text: '袖口都磨破了，號碼也快掉光。',
+    options: [
+      {
+        label: '訂新球衣',
+        hint: '士氣變好',
+        effect: (game) => {
+          cheerUp(game, 3);
+          return '穿上新球衣的那天，大家走路都有風。';
+        },
+      },
+      {
+        label: '繼續穿舊的',
+        hint: '把錢省下來，全隊守備 +2',
+        effect: (game, rng) => {
+          const n = bump(someone(game, 6, rng), 'field', 2);
+          return `錢省下來加買了幾個手套。${n} 個人的守備進步了。`;
+        },
+      },
+    ],
+  },
+  {
+    id: 'construction',
+    title: '隔壁工地在施工',
+    text: '打樁機的聲音蓋過了教練的喊聲。',
+    options: [
+      {
+        label: '換個地方練',
+        hint: '這週成長打折，但比較安靜',
+        effect: (game) => {
+          game.weekBoost = { gain: 0.85, injury: 1 };
+          return '借了隔壁學校的球場，勉強練完了。';
+        },
+      },
+      {
+        label: '照舊練，習慣就好',
+        hint: '全隊耐力 +2',
+        effect: (game, rng) => {
+          const n = bump(canPlay(game), 'stamina', 2);
+          return `吵歸吵，${n} 個人反而練出了忍耐力。`;
+        },
+      },
+    ],
+  },
+  {
+    id: 'checkup',
+    title: '學校安排定期體檢',
+    text: '校醫來幫全隊量血壓、聽心跳。',
+    options: [
+      {
+        label: '照規定做完整檢查',
+        hint: '這週受傷機率大降',
+        effect: (game) => {
+          game.weekBoost = { gain: 1, injury: 0.4 };
+          return '順便發現兩個人有點過度疲勞，提早叫他們收操。';
+        },
+      },
+      {
+        label: '隨便量一量',
+        hint: '這週成長 +5%',
+        effect: (game) => {
+          game.weekBoost = { gain: 1.05, injury: 1 };
+          return '排隊排一下就結束了，剩下的時間拿去練球。';
+        },
+      },
+    ],
+  },
 ];
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);
 
-/** 這一週要不要跳事件。回傳事件的 id，或 null */
-export function rollEvent(game, rng = Math.random, chance = 0.18) {
+/**
+ * 這一週要不要跳事件。現在是每個練習週都會遇到一個（chance 預設 1），
+ * 保留 chance 參數只是方便以後想調整、或測試用。
+ */
+export function rollEvent(game, rng = Math.random, chance = 1) {
   if (rng() >= chance) return null;
   const recent = new Set(game.recentEvents || []);
   const pool = EVENTS.filter((e) => !recent.has(e.id));
@@ -456,7 +607,7 @@ export function resolveEvent(game, index, rng = Math.random) {
   const result = opt.effect(game, rng);
 
   game.pendingEvent = null;
-  game.recentEvents = [...(game.recentEvents || []), ev.id].slice(-4);
+  game.recentEvents = [...(game.recentEvents || []), ev.id].slice(-6);
 
   return {
     week: game.cursor.abs,
@@ -583,6 +734,89 @@ export function rollOpponentTrait(rng = Math.random) {
   const m = baseMods();
   t.apply(m);
   return { trait: { id: t.id, name: t.name, desc: t.desc }, mods: m };
+}
+
+// ── 5. 轉學生（一年一定會遇到一個）──────────────────────
+//
+// 隨機挑一個練習週，那一週不跳突發事件，改成轉學生入學。
+// 年級隨機（1〜3年級都可能），入學是確定的，選項只影響一點小加成。
+// 有極低機率（2.5%）拿到「超神轉學生」—— 他的專長能力直接頂到頂點。
+
+/** 超神轉學生的機率 */
+export const TRANSFER_SUPERSTAR_CHANCE = 0.025;
+
+/** 這一年要在哪一個練習週遇到轉學生（回傳陣列索引，不是 week 編號） */
+export function pickTransferWeek(weeks, rng = Math.random) {
+  const idxs = [];
+  weeks.forEach((w, i) => { if (w.kind === 'training') idxs.push(i); });
+  if (!idxs.length) return -1;
+  return idxs[Math.floor(rng() * idxs.length)];
+}
+
+/** 生一個轉學生。回傳 { player, superstar } */
+export function rollTransferStudent(game, rng = Math.random) {
+  const gradeYear = 1 + Math.floor(rng() * 3);
+  const superstar = rng() < TRANSFER_SUPERSTAR_CHANCE;
+
+  // 隊上缺的位置優先給他，這樣他一定用得到
+  const have = {};
+  active(game.team.players).forEach((p) => { have[p.position] = (have[p.position] || 0) + 1; });
+  const needed = POSITIONS.map((p) => p.id).sort((a, b) => (have[a] || 0) - (have[b] || 0));
+  const position = needed[0];
+
+  const talent = superstar ? 5 : 1 + Math.floor(rng() * 4);
+  const player = createPlayer({
+    gradeYear, talent, position, rng,
+  });
+
+  if (superstar) {
+    // 只頂他的專長（投手頂投手能力、野手頂打者能力），
+    // 不是全能超人，這樣還是像一個真的很強的球員，不是外掛
+    const roleStats = position === 'P' ? PITCHER_STATS : BATTER_STATS;
+    roleStats.forEach((s) => {
+      player.potential[s.id] = MAX_ABILITY;
+      player.abilities[s.id] = clamp(player.abilities[s.id] + 24, 1, MAX_ABILITY);
+    });
+
+    // 保底兩個好能力，壞能力全拿掉
+    const role = position === 'P' ? 'pitcher' : 'batter';
+    player.skills = player.skills.filter((id) => skillById(id)?.good);
+    const pool = skillsFor(role, true).map((s) => s.id).filter((id) => !player.skills.includes(id));
+    while (player.skills.length < 2 && pool.length) {
+      player.skills.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+    }
+  }
+
+  return { player, superstar };
+}
+
+/** 轉學生入學的兩個選項都會讓他加入，差別只在一點小加成 */
+export function resolveTransfer(game, choice, rng = Math.random) {
+  const t = game.pendingTransfer;
+  if (!t) return null;
+  const { player, superstar } = t;
+
+  game.team.players = addRecruits(game.team.players, [player]);
+  game.pendingTransfer = null;
+
+  let note;
+  if (choice === 'warm') {
+    game.morale.weeksSinceMatch = Math.max(0, game.morale.weeksSinceMatch - 2);
+    note = '全隊夾道歡迎，氣氛很好。';
+  } else {
+    const n = bump(someone(game, 4, rng), 'meet', 1);
+    note = `照平常一樣練習。${n} 個人反而練得更專心了。`;
+  }
+
+  return {
+    week: game.cursor.abs,
+    kind: 'transfer',
+    event: superstar ? '傳說中的轉學生' : '轉學生入學',
+    transferResult: {
+      name: player.name, position: player.position, gradeYear: player.gradeYear,
+      talent: player.talent, superstar, note,
+    },
+  };
 }
 
 export { clamp };

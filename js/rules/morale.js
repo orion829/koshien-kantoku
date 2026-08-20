@@ -1,7 +1,8 @@
 // 士氣與練習效率
 //
 // 隊伍離上一場正式比賽越久，就越鬆散，練習效率越差。
-// 打一場練習賽可以把計時器往回撥 4 週。
+// 每練習一週，計時器就會往前走一格——士氣會因為練習週而下降，
+// 不是只有等著才會掉。打一場練習賽可以把計時器往回撥 4 週。
 //
 // 為什麼要有這條規則：
 //   輸掉的比賽週會變成練習週，等於「輸了可以多練」。
@@ -25,9 +26,10 @@ export const PRACTICE_FLOOR = 2;
 export const PRACTICE_TRAINING_VALUE = 0;
 
 const TIERS = [
-  { under: 4, rate: 1.0, label: '狀態很好' },
-  { under: 8, rate: 0.75, label: '有點鬆散' },
-  { under: Infinity, rate: 0.5, label: '散掉了' },
+  { under: 3, rate: 1.0, label: '狀態很好' },
+  { under: 6, rate: 0.75, label: '有點鬆散' },
+  { under: 10, rate: 0.5, label: '散掉了' },
+  { under: Infinity, rate: 0.35, label: '完全沒心練' },
 ];
 
 const tierOf = (weeksSinceMatch) => TIERS.find((t) => weeksSinceMatch < t.under);
