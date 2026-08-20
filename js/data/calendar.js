@@ -128,22 +128,19 @@ export function buildYear(wins) {
 }
 
 /**
- * 生成一整局的賽程，預設三年（遊戲設計就是「三個夏天」），
- * 但也可以指定 numYears 跑更長——主要是拿來測試長局穩不穩，
- * 不是給玩家選的難度選項。
+ * 生成賽程的頭幾年。遊戲本身不會結束——只要玩家不按重新開始，
+ * 一年打完就接著生下一年，這裡只負責生「一開始」的份量。
  *   第1年：六月上任 → 跳過春天那 6 週
- *   中間每一年：完整春夏秋冬
- *   最後一年：夏天甲子園冠軍賽打完就結束
+ *   之後每一年：完整春夏秋冬，不會被截斷
+ * （以前第三年會在夏天結束後截斷，現在沒有「最後一年」這回事了，
+ *   所以全部統一用完整的一年——只有第1年因為是半路上任才特別短。）
  */
 export function buildRun(wins, numYears = 3) {
-  const full = buildYear(wins);
-  const summerEnd = full.findIndex((x) => x.phase === 'handover');
-
   const years = [];
   for (let i = 0; i < numYears; i += 1) {
-    if (i === numYears - 1) years.push(full.slice(0, summerEnd).map((x) => ({ ...x })));
-    else if (i === 0) years.push(full.slice(6).map((x) => ({ ...x })));
-    else years.push(full.map((x) => ({ ...x })));
+    years.push(i === 0
+      ? buildYear(wins).slice(6).map((x) => ({ ...x }))
+      : buildYear(wins).map((x) => ({ ...x })));
   }
 
   let abs = 0;
@@ -155,6 +152,20 @@ export function buildRun(wins, numYears = 3) {
   });
 
   return years;
+}
+
+/**
+ * 再生一年出來，接在現有賽程後面。無限局的關鍵——
+ * 玩家打完現在手上的最後一年，遊戲會自動呼叫這個函式生下一年，
+ * 不會停下來。
+ */
+export function extendRun(schedule, wins) {
+  const yearNum = schedule.length + 1;
+  const year = buildYear(wins).map((x) => ({ ...x, year: yearNum }));
+  let abs = schedule.reduce((n, y) => n + y.length, 0);
+  year.forEach((x) => { x.abs = ++abs; });
+  schedule.push(year);
+  return year;
 }
 
 export function runSummary(wins, numYears = 3) {

@@ -3,7 +3,7 @@
 
 export const UI = {
   appTitle: '甲子園監督',
-  appSubtitle: '從地區大賽打起，三個夏天內拿下甲子園冠軍',
+  appSubtitle: '從地區大賽打起，一年一年把學校帶向甲子園',
 
   setupHeading: '新監督上任',
   setupLead: '填完之後就直接跳到六月底 —— 離地區大賽只剩兩週。',

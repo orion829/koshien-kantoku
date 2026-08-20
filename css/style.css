@@ -1649,3 +1649,59 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 .event--alumni .event__title { color: var(--green); }
 
 .log--alumni .log__body { color: var(--green); }
+
+/* ---------- 校務投資 ---------- */
+
+.picks--shop {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+.draft--shop { border-color: var(--accent); }
+
+.card-pick--shop { position: relative; padding-bottom: 34px; }
+
+.card-pick__lv {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 5px;
+}
+
+.card-pick__cost {
+  position: absolute;
+  left: 14px;
+  bottom: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.card-pick.is-disabled,
+.card-pick--shop:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.card-pick--shop:disabled:hover { transform: none; border-color: var(--line-strong); }
+
+@media (max-width: 620px) {
+  .picks--shop { grid-template-columns: 1fr; }
+}
+
+/* ---------- 主畫面常駐的傳承點數 ---------- */
+
+.legacy-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.legacy-badge i { font-style: normal; color: var(--muted); }
+.legacy-badge b { font-size: 14px; font-weight: 700; color: var(--accent); }
+.legacy-badge em {
+  font-style: normal;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,6 +1,8 @@
-import { currentWeek, availableActions, takeAction, isRunOver, teamStrength } from '../rules/game.js';
+import {
+  currentWeek, availableActions, takeAction, teamStrength, buyUpgrade, upgradeCost,
+} from '../rules/game.js';
 import { moraleLabel, efficiency } from '../rules/morale.js';
-import { overall, overallGrade } from '../rules/player.js';
+import { overallGrade } from '../rules/player.js';
 import { active } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
 import { weekGames, bindGameCards } from './boxscore.js';
@@ -11,7 +13,7 @@ import {
 } from '../rules/scouting.js';
 import {
   perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer, resolveAwaken,
-  resolveAlumniVisit,
+  resolveAlumniVisit, UPGRADES,
 } from '../rules/roguelike.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -191,6 +193,33 @@ function alumniPanel(game) {
     </div>`;
 }
 
+/**
+ * 校務投資：把這一年賺到的傳承點數拿去買永久升級。
+ * 不會強迫玩家買，也不會擋住下一步——買完可以繼續買，或直接按下一步跳過。
+ */
+function investPanel(game) {
+  const pts = game.legacyPoints || 0;
+  const cards = UPGRADES.map((u) => {
+    const level = (game.upgrades && game.upgrades[u.id]) || 0;
+    const cost = upgradeCost(game, u.id);
+    const afford = pts >= cost;
+    return `
+      <button type="button" class="card-pick card-pick--shop${afford ? '' : ' is-disabled'}"
+              data-act="upgrade:${u.id}" ${afford ? '' : 'disabled'}>
+        <b class="card-pick__name">${u.name}<em class="card-pick__lv">Lv.${level}</em></b>
+        <span class="card-pick__desc">${u.desc}</span>
+        <span class="card-pick__cost">花 ${cost} 點</span>
+      </button>`;
+  }).join('');
+  return `
+    <div class="draft draft--shop">
+      <h3 class="draft__title">校務投資<span class="hint"> 傳承點數 ${pts}</span></h3>
+      <p class="draft__lead">升級是永久的，不會因為球員畢業、換一批人帶隊就消失。
+        想買幾個都行，不夠點數的話先留到明年。</p>
+      <div class="picks picks--shop">${cards}</div>
+    </div>`;
+}
+
 /** 比賽週：開打前選一個作戰 */
 function tacticPanel(game) {
   const ids = game.tacticChoices || [];
@@ -349,6 +378,8 @@ function lastResultBox(game) {
           <li><b>${d.name}</b> ${positionById(d.position)?.short || ''}
             <span class="cand__talent">${'★'.repeat(d.talent)}${'☆'.repeat(5 - d.talent)}</span>
             <span class="muted">（注目度 ${d.attention}）</span></li>`).join('')}</ul>` : ''}
+      ${l.legacyEarned ? `<p class="last__note">這一年賺了 <b>${l.legacyEarned}</b> 點傳承點數，
+        可以拿去買永久升級。</p>` : ''}
       ${l.joined ? `<p class="last__note">人數不夠 9 個，
         校內有 ${l.joined} 個同學來入部（都很弱）。</p>` : ''}
     </div>`;
@@ -442,26 +473,6 @@ function logList(game) {
 
 export function renderWeek(root, game, onChange) {
   const w = currentWeek(game);
-  const over = isRunOver(game);
-
-  if (over) {
-    const best = [...game.team.players].sort((a, b) => overall(b) - overall(a))[0];
-    root.innerHTML = `
-      <div class="over">
-        <h2>三年結束了</h2>
-        <p class="muted">這一局到此為止。看看你帶出來的隊伍吧。</p>
-        <ul class="tally">
-          <li><b>${teamStrength(game.team.players)}</b><span>最終戰力</span></li>
-          <li><b class="g g--${overallGrade(best)}">${overallGrade(best)}</b><span>最強球員</span></li>
-        </ul>
-        ${resultTable(game)}
-        <button type="button" class="btn btn--primary btn--wide" data-summary="download">
-          下載成績單（.svg 圖檔）
-        </button>
-      </div>`;
-    bindSummaryButtons(root, game);
-    return;
-  }
 
   // 三選一還沒選就什麼都不能做 —— 這是整局最重要的選擇
   if (game.pendingDraft?.length) {
@@ -491,8 +502,10 @@ export function renderWeek(root, game, onChange) {
            </button>
          </div>
          ${w.retireSeniors ? `
+           ${resultTable(game)}
+           ${investPanel(game)}
            <button type="button" class="btn btn--wide" data-summary="download">
-             這一年結束了，要不要下載成績單？
+             下載這一年的成績單（.svg 圖檔）
            </button>` : ''}`;
 
   root.innerHTML = `
@@ -571,6 +584,11 @@ function bindActions(root, game, onChange) {
       }
       if (id.startsWith('alumni:')) {
         push(resolveAlumniVisit(game, id.slice(7)));
+        onChange();
+        return;
+      }
+      if (id.startsWith('upgrade:')) {
+        buyUpgrade(game, id.slice(8));
         onChange();
         return;
       }

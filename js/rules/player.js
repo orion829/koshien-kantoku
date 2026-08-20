@@ -187,6 +187,24 @@ export function fieldingAt(player, positionId) {
 export const isPitcher = (player) => player.position === 'P';
 
 /**
+ * 把每一項能力的上限墊高，也讓一開始的能力跟著沾光一半——
+ * 只墊高上限的話，要練好幾年才追得上，感覺不出「學校變強了」；
+ * 起始能力也跟著漲，買下去馬上看得到差別。
+ * 這是唯一能真的突破「天賦封頂」的辦法——校務投資裡的「英才培育」
+ * 就是靠這個讓學校長期而言真的越帶越強，不只是練得比較輕鬆。
+ */
+export function boostPotential(players, bonus) {
+  if (!bonus) return players;
+  players.forEach((p) => {
+    Object.keys(p.potential).forEach((k) => {
+      p.potential[k] = Math.min(MAX_ABILITY, p.potential[k] + bonus);
+      p.abilities[k] = Math.min(p.potential[k], p.abilities[k] + bonus * 0.5);
+    });
+  });
+  return players;
+}
+
+/**
  * 粗略的整體評價，只拿來排序和顯示，不是比賽用的數字。
  * 投手看投手能力，野手看打者能力。
  */

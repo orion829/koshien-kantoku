@@ -25,6 +25,17 @@ function moraleBadge(game) {
     </span>`;
 }
 
+/** 傳承點數也常駐顯示——這是「學校一年比一年強」最直接的證據 */
+function legacyBadge(game) {
+  const pts = game.legacyPoints || 0;
+  const levels = Object.values(game.upgrades || {}).reduce((a, b) => a + b, 0);
+  return `
+    <span class="legacy-badge">
+      <i>傳承點數</i><b>${pts}</b>
+      ${levels ? `<em>已升級 ${levels} 級</em>` : ''}
+    </span>`;
+}
+
 /** 上任之後的主畫面 */
 export function renderTeam(root, game, onReset) {
   let active = TABS[0].id;
@@ -42,6 +53,7 @@ export function renderTeam(root, game, onReset) {
           </p>
           <p class="masthead__str">戰力 <b id="teamStr">${teamStrength(game.team.players)}</b></p>
           <div id="moraleBadge">${moraleBadge(game)}</div>
+          <div id="legacyBadge">${legacyBadge(game)}</div>
         </div>
         <div class="masthead__radar" id="radarBox">${radarSVG(game.team.players)}</div>
 
@@ -75,6 +87,7 @@ export function renderTeam(root, game, onReset) {
     root.querySelector('#teamStr').textContent = teamStrength(game.team.players);
     root.querySelector('#timelineBox').innerHTML = renderTimeline(game);
     root.querySelector('#moraleBadge').innerHTML = moraleBadge(game);
+    root.querySelector('#legacyBadge').innerHTML = legacyBadge(game);
     draw();
   }
 

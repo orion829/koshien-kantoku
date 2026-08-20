@@ -326,7 +326,7 @@ head('作戰與傳統：每個都要有用，但不能有一個獨大（+1〜+8p
   console.log('  ※ 穩紮穩打是負的沒關係，它換到的是「不受傷」');
 }
 
-head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都有，而且不能當掉');
+head('一整局（前3年切片）：三選一 6 次、轉學生 3 次、事件每個練習週都有，而且不能當掉');
 {
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
   let crash = 0;
@@ -346,7 +346,8 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
     });
     try {
       let guard = 0;
-      while (!G.isRunOver(g) && guard < 400) {
+      // 遊戲現在不會自己結束，這裡明確跑 3 年就停，模擬「原本的一局」
+      while (g.cursor.year <= 3 && guard < 400) {
         guard += 1;
         if (g.pendingDraft?.length) { drafts += 1; RG.choosePerk(g, pick(g.pendingDraft)); continue; }
         if (g.pendingTransfer) {
@@ -384,7 +385,7 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
   }
   strengths.sort((a, b) => a - b);
   console.log(`  跑完 ${strengths.length} 局　當掉 ${crash} 次（要是 0）`);
-  console.log(`  每局三選一 ${(drafts / 40).toFixed(1)} 次（要是 5.0）`
+  console.log(`  每局三選一 ${(drafts / 40).toFixed(1)} 次（要是 6.0，年年都有全套春夏秋冬）`
     + `　轉學生 ${(transfers / 40).toFixed(1)} 次（要是 3.0）`
     + `　超神轉學生 ${superstars} / ${transfers}（機率設定 2.5%）`);
   console.log(`  每局突發事件 ${(events / 40).toFixed(1)} 次`);
@@ -404,6 +405,11 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
   const strengths = [];
   const rosterMins = [];
 
+  const early = []; // 第 1〜3 年的戰力
+  const late = [];  // 第 13〜15 年的戰力
+  const finalPoints = [];
+  const finalLevels = [];
+
   for (let n = 0; n < 12; n += 1) {
     const g = ST.createGame({
       managerName: '長局測試', schoolName: '長局高校', prefectureId: 'aichi', numYears: 15,
@@ -411,9 +417,12 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
     try {
       let guard = 0;
       let minRoster = 999;
-      while (!G.isRunOver(g) && guard < 3000) {
+      // 遊戲現在無限跑下去，這裡明確跑 15 年就停，測長局穩不穩
+      while (g.cursor.year <= 15 && guard < 3000) {
         guard += 1;
         minRoster = Math.min(minRoster, R.active(g.team.players).length);
+        if (g.cursor.year <= 3) early.push(G.teamStrength(g.team.players));
+        else if (g.cursor.year >= 13) late.push(G.teamStrength(g.team.players));
         if (g.pendingDraft?.length) { RG.choosePerk(g, pick(g.pendingDraft)); continue; }
         if (g.pendingTransfer) { RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet'); continue; }
         if (g.pendingAlumniVisit) {
@@ -423,6 +432,10 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
         if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
         if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
         if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
+        // 有點數就花——這是驗證「學校越帶越強」的關鍵：一個會花點數的玩家
+        // 應該要比完全不花的玩家強
+        const affordable = RG.UPGRADES.filter((u) => (g.legacyPoints || 0) >= RG.upgradeCost(g, u.id));
+        if (affordable.length) { RG.buyUpgrade(g, pick(affordable).id); continue; }
         const w = G.currentWeek(g);
         const acts = G.availableActions(g).filter((a) => !a.todo && !a.id.startsWith('scout'));
         G.takeAction(g, w.kind === 'training' ? pick(acts).id : null);
@@ -430,6 +443,8 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
       if (guard >= 3000) stuck += 1;
       strengths.push(G.teamStrength(g.team.players));
       rosterMins.push(minRoster);
+      finalPoints.push(g.legacyPoints || 0);
+      finalLevels.push(Object.values(g.upgrades || {}).reduce((a, b) => a + b, 0));
     } catch (e) {
       crash += 1;
       console.log(`  當掉了：${e.message}`);
@@ -441,6 +456,41 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
   console.log(`  最終戰力 最小 ${strengths[0]} 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
     + ` 最大 ${strengths.at(-1)}`);
   console.log(`  過程中人數最低點 ${Math.min(...rosterMins)}（要 >= ${R.MIN_PLAYERS}）`);
+  console.log(`  結束時傳承點數 中位數 ${med(finalPoints)}　已買升級 中位數 ${med(finalLevels)} 級`);
+  console.log(`  第1〜3年戰力 中位數 ${med(early)}　第13〜15年戰力 中位數 ${med(late)}`
+    + `（隨機亂買升級雜訊很大，這裡看個大概；下面「英才培育對新兵的效果」才是乾淨的驗證）`);
+}
+
+head('校務投資：升級真的有效果，不是擺著好看（每種升級都升到 Lv.3 比較）');
+{
+  const base = RG.modifiers({ perks: [], upgrades: {} });
+  RG.UPGRADES.forEach((u) => {
+    const lv3 = RG.modifiers({ perks: [], upgrades: { [u.id]: 3 } });
+    const diffs = Object.keys(base)
+      .filter((k) => typeof base[k] === 'number' && Math.abs(lv3[k] - base[k]) > 1e-6)
+      .map((k) => `${k} ${base[k].toFixed(2)}→${lv3[k].toFixed(2)}`);
+    console.log(`  ${u.name.padEnd(6)} Lv.3　${diffs.join('　') || '（沒有變化，壞了）'}`);
+  });
+  console.log(`  花費：Lv.1〜3 依序要 ${RG.UPGRADES[0].baseCost}／`
+    + `${RG.UPGRADES[0].baseCost + RG.UPGRADE_COST_STEP}／`
+    + `${RG.UPGRADES[0].baseCost + RG.UPGRADE_COST_STEP * 2} 點（越買越貴）`);
+
+  // 「英才培育」是唯一真的突破天賦封頂的升級，直接測新兵品質有沒有變好——
+  // 這個比長局隨機亂買的測試乾淨很多，長局那邊會被亂買的雜訊蓋掉
+  const freshBatch = (bonus, N = 2000) => {
+    const players = Array.from({ length: N }, () => P.createPlayer({
+      gradeYear: 1, talent: 1 + Math.floor(Math.random() * 5), position: 'SS',
+    }));
+    if (bonus) P.boostPotential(players, bonus);
+    return players.reduce((n, p) => n + P.overall(p), 0) / N;
+  };
+  const academyBonus = RG.upgradeById('academy').apply;
+  const m3 = { potentialBonus: 0 };
+  academyBonus(m3); academyBonus(m3); academyBonus(m3);
+  const noUp = freshBatch(0);
+  const maxUp = freshBatch(m3.potentialBonus);
+  console.log(`  英才培育對新兵的效果：沒買 overall ${noUp.toFixed(1)}　`
+    + `買到 Lv.3 overall ${maxUp.toFixed(1)}（要明顯更高，這是「學校變強」最直接的證據）`);
 }
 
 console.log('');

@@ -3,8 +3,8 @@ import { buildRun } from './data/calendar.js';
 import { createRoster } from './rules/roster.js';
 import { drawPerks, pickTransferWeek } from './rules/roguelike.js';
 
-const SAVE_KEY = 'koshien-kantoku:save:v11';
-export const SAVE_VERSION = 11;
+const SAVE_KEY = 'koshien-kantoku:save:v12';
+export const SAVE_VERSION = 12;
 
 /**
  * 從開始畫面的輸入建立一份新的遊戲存檔。
@@ -71,6 +71,8 @@ export function createGame({
     awakenSeen: [],                // 賭輸過的（球員,能力）組合，不會再跳第二次
     proAlumni: [],                 // 被職棒選走的畢業生
     pendingAlumniVisit: null,      // 還沒處理的學長探班事件
+    legacyPoints: 0,                // 傳承點數，拿去買永久升級
+    upgrades: {},                   // 已經買的升級等級，例如 { facility: 2 }
 
     // 最近做過的事，給畫面顯示用（只留最後 40 筆）
     log: [],

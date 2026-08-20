@@ -96,7 +96,7 @@ export function generateCandidates(game, rng = Math.random) {
       talent,
       growthType,
       interest,
-      threshold: thresholdFor(talent),
+      threshold: Math.max(20, thresholdFor(talent) - mods.thresholdCut),
       visits: 0,
       known: mods.scoutKnown,   // 有「伯樂」的話一開始就看得到
     };

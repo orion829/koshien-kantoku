@@ -1,6 +1,6 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成七種：
+// 這個檔案放「每一局都不一樣」的東西。分成八種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
 //   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
@@ -10,11 +10,13 @@
 //   6. 能力覺醒 能力練過門檻時可能跳卡片，賭贏學會新能力，
 //             賭輸能力會掉或換來壞習慣
 //   7. 學長探班 打得夠好被職棒選走的畢業生，偶爾回來幫學校一把
+//   8. 校務投資 每年戰績換傳承點數，拿去買永久升級——
+//             這是「學校越帶越強」的主要來源，球員換血也不會消失
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
 
-import { createPlayer } from './player.js';
+import { createPlayer, boostPotential } from './player.js';
 import { addRecruits, active } from './roster.js';
 import { injure } from './injury.js';
 import {
@@ -38,6 +40,9 @@ export function baseMods() {
     walkOnBonus: 0,      // 每年自己來的新生
     moraleRewind: 0,     // 練習賽多拉回幾週
     weights: {},         // 練習項目的額外權重
+    alumniChance: 0,      // 學長探班機率加成
+    thresholdCut: 0,      // 招生好感度門檻降低多少
+    potentialBonus: 0,    // 新加入的人，每一項能力上限 +多少
 
     // 比賽
     meet: 0, power: 0, speed: 0,
@@ -150,6 +155,13 @@ export const perkById = (id) => PERKS.find((p) => p.id === id);
 export function modifiers(game) {
   const m = baseMods();
   (game?.perks || []).forEach((id) => perkById(id)?.apply(m));
+  // 校務投資是永久的，跟傳統一樣疊進同一張加成表，
+  // 不會因為球員畢業、甚至傳統整套換掉而消失
+  Object.entries(game?.upgrades || {}).forEach(([id, level]) => {
+    const u = upgradeById(id);
+    if (!u) return;
+    for (let i = 0; i < level; i += 1) u.apply(m);
+  });
   return m;
 }
 
@@ -799,6 +811,8 @@ export function resolveTransfer(game, choice, rng = Math.random) {
   if (!t) return null;
   const { player, superstar } = t;
 
+  // 「英才培育」升級對轉學生一樣有效
+  boostPotential([player], modifiers(game).potentialBonus);
   game.team.players = addRecruits(game.team.players, [player]);
   game.pendingTransfer = null;
 
@@ -933,7 +947,8 @@ export const ALUMNI_VISIT_CHANCE = 0.08;
 export function rollAlumniVisit(game, rng = Math.random) {
   const pool = game.proAlumni || [];
   if (!pool.length) return null;
-  if (rng() >= ALUMNI_VISIT_CHANCE) return null;
+  const chance = ALUMNI_VISIT_CHANCE + modifiers(game).alumniChance;
+  if (rng() >= chance) return null;
   return pickOne(pool, rng);
 }
 
@@ -961,6 +976,111 @@ export function resolveAlumniVisit(game, choice, rng = Math.random) {
     event: '職棒學長回來探班',
     alumniResult: { name: a.name, note },
   };
+}
+
+// ── 8. 校務投資（永久升級，讓學校越帶越強）──────────────
+//
+// 遊戲不會自己結束，球員會一直畢業、一直換血，但學校本身可以越蓋越大。
+// 每年三年級退隊時，那一年的戰績會換成「傳承點數」，可以拿去買升級——
+// 升級是永久的，不會因為換了一批球員、甚至傳統整套重抽就消失。
+// 這是「一年比一年強」的主要來源，跟球員本身的成長是兩條線。
+
+/** 每提升一級，下一級要多花多少點 */
+export const UPGRADE_COST_STEP = 2;
+
+export const UPGRADES = [
+  {
+    id: 'facility',
+    name: '訓練設備',
+    desc: '練習成長 +6%（可疊加）',
+    baseCost: 3,
+    apply: (m) => { m.trainGain *= 1.06; },
+  },
+  {
+    id: 'dorm',
+    name: '宿舍擴建',
+    desc: '部員上限 +2、每年自己來的新生 +2',
+    baseCost: 3,
+    apply: (m) => { m.rosterBonus += 2; m.walkOnBonus += 2; },
+  },
+  {
+    id: 'clinic',
+    name: '運動醫學中心',
+    desc: '養傷速度 +20%、比賽受傷機率 −8%',
+    baseCost: 4,
+    apply: (m) => { m.healSpeed *= 1.2; m.matchInjury *= 0.92; },
+  },
+  {
+    id: 'network',
+    name: '校友網絡',
+    desc: '注目度 +5、學長探班機率 +3%',
+    baseCost: 4,
+    apply: (m) => { m.fame += 5; m.alumniChance += 0.03; },
+  },
+  {
+    id: 'reputation',
+    name: '招生口碑',
+    desc: '招生名單多 1 個人、好感度門檻 −4',
+    baseCost: 5,
+    apply: (m) => { m.scoutExtra += 1; m.thresholdCut += 4; },
+  },
+  {
+    id: 'academy',
+    name: '英才培育',
+    desc: '之後加入的新人（新生、轉學生），每項能力上限 +3',
+    baseCost: 6,
+    apply: (m) => { m.potentialBonus += 3; },
+  },
+];
+
+export const upgradeById = (id) => UPGRADES.find((u) => u.id === id);
+
+/** 這個升級現在要花多少點才能再買一級 */
+export function upgradeCost(game, id) {
+  const u = upgradeById(id);
+  if (!u) return Infinity;
+  const level = (game.upgrades && game.upgrades[id]) || 0;
+  return u.baseCost + level * UPGRADE_COST_STEP;
+}
+
+/** 買一級升級。點數不夠會失敗，回傳有沒有買成功 */
+export function buyUpgrade(game, id) {
+  const u = upgradeById(id);
+  if (!u) return false;
+  const cost = upgradeCost(game, id);
+  if ((game.legacyPoints || 0) < cost) return false;
+  game.legacyPoints -= cost;
+  game.upgrades = game.upgrades || {};
+  game.upgrades[id] = (game.upgrades[id] || 0) + 1;
+  return true;
+}
+
+/** 各種成績能換到多少傳承點數（跟注目度的 FAME 表結構一樣，但這是可以花掉的） */
+const LEGACY_POINTS = {
+  koshienChampion: 8,
+  koshienEntry: 4,
+  senbatsuChampion: 5,
+  senbatsuEntry: 2,
+  autumnAreaChampion: 2,
+  regionalFinal: 1,
+};
+
+/**
+ * 這一年賺了多少傳承點數。撐過一年就有 3 點保底——這個保底很重要，
+ * 不然打不出成績的年份完全沒有進展，違背「每年都能有所成長」的設計目標。
+ * 打得越好、送越多人進職棒，賺得越多。
+ */
+export function legacyPointsFor(yearProgress, draftedCount = 0) {
+  const p = yearProgress || {};
+  let pts = 3;
+  if (p.regional?.champion) pts += LEGACY_POINTS.koshienEntry;
+  else if (p.regional?.lastRound === '冠軍賽') pts += LEGACY_POINTS.regionalFinal;
+  if (p.koshien?.champion) pts += LEGACY_POINTS.koshienChampion;
+  if (p.autumnArea?.champion) pts += LEGACY_POINTS.autumnAreaChampion;
+  if (p.senbatsu) pts += LEGACY_POINTS.senbatsuEntry;
+  if (p.senbatsu?.champion) pts += LEGACY_POINTS.senbatsuChampion;
+  pts += draftedCount * 3;
+  return pts;
 }
 
 export { clamp };

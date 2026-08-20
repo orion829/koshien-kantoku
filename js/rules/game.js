@@ -7,13 +7,15 @@
 //
 // 輸掉的比賽會讓後面的週變成練習週，這在 calendar.js 的 toTrainingWeek 裡。
 
-import { toTrainingWeek } from '../data/calendar.js';
+import { toTrainingWeek, extendRun } from '../data/calendar.js';
 import { grade } from '../data/abilities.js';
 import {
   MENUS, menuById, trainTeam, growFromMatch, scoutGainFromMatch,
 } from './training.js';
 import { efficiency, moraleLabel, advance, PRACTICE_FLOOR } from './morale.js';
-import { overall, isPitcher, createPlayer } from './player.js';
+import {
+  overall, isPitcher, createPlayer, boostPotential,
+} from './player.js';
 import { generateOpponent, buildLineup, playMatch } from './match.js';
 import {
   healthy, isInjured, injure, healWeek, matchInjuryChance, trainInjuryChance,
@@ -28,12 +30,13 @@ import {
 import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
   pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
-  rollAlumniVisit, resolveAlumniVisit,
+  rollAlumniVisit, resolveAlumniVisit, legacyPointsFor, buyUpgrade, upgradeCost,
 } from './roguelike.js';
 
 export {
   choosePerk, resolveEvent, drawTactics, modifiers, matchMods, resolveTransfer,
-  resolveAwaken, resolveAlumniVisit, PERKS, perkById, TACTICS, tacticById, eventById,
+  resolveAwaken, resolveAlumniVisit, buyUpgrade, upgradeCost,
+  PERKS, perkById, TACTICS, tacticById, eventById, UPGRADES, upgradeById,
 } from './roguelike.js';
 
 // ── 比賽的資格關聯 ──────────────────────────────────────
@@ -348,6 +351,11 @@ export function takeAction(game, actionId, rng = Math.random) {
       log.retired = count;
       log.drafted = checkDraft(game, retirees, rng);
       log.joined = fillToMinimum(game, rng);
+      // 這一年的戰績換成傳承點數，可以拿去買永久升級——這是「學校
+      // 越帶越強」的主要來源，不會因為這一批球員畢業就歸零
+      const earned = legacyPointsFor(game.progress[game.cursor.year - 1], log.drafted.length);
+      game.legacyPoints = (game.legacyPoints || 0) + earned;
+      log.legacyEarned = earned;
     }
   }
 
@@ -471,13 +479,16 @@ function step(game, rng) {
   game.cursor.abs += 1;
 
   if (game.cursor.week > year.length) {
-    // 這一年結束了
-    if (game.cursor.year >= game.schedule.length) {
-      game.cursor.week = year.length + 1;   // 超出範圍 = 這一局結束
-      return;
-    }
+    // 這一年結束了。遊戲不會自己結束——沒有下一年的話就現生一年，
+    // 一直打下去，直到玩家自己按重新開始。
     game.cursor.year += 1;
     game.cursor.week = 1;
+    if (game.cursor.year > game.schedule.length) {
+      extendRun(game.schedule, game.difficulty.wins);
+      game.progress.push({
+        regional: null, koshien: null, autumn: null, autumnArea: null, senbatsu: null,
+      });
+    }
     rollOver(game, rng);
   }
 
@@ -542,6 +553,8 @@ function rollOver(game, rng) {
   }));
 
   const recruits = [...scouted, ...walkOns];
+  // 「英才培育」升級：新加入的人上限直接墊高，這是唯一能突破天賦封頂的辦法
+  boostPotential(recruits, mods.potentialBonus);
 
   // 部員上限 25 人。超過的話從最弱的開始退部
   const limit = ROSTER_LIMIT + mods.rosterBonus;
