@@ -4,6 +4,10 @@ import { overall, overallGrade } from '../rules/player.js';
 import { active } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
 import { weekGames, bindGameCards } from './boxscore.js';
+import { positionById } from '../data/abilities.js';
+import {
+  fameOf, JOIN_THRESHOLD, candidateHint, growthName,
+} from '../rules/scouting.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
 
@@ -23,7 +27,8 @@ function moraleBox(game) {
 function actionButtons(game) {
   const acts = availableActions(game);
   const menus = acts.filter((a) => a.kind === 'menu');
-  const others = acts.filter((a) => a.kind === 'special');
+  // 招生要挑對象，所以不放在一般按鈕裡，另外做一塊
+  const others = acts.filter((a) => a.kind === 'special' && a.id !== 'scout');
 
   const btn = (a) => `
     <button type="button" class="act${a.todo ? ' act--todo' : ''}"
@@ -32,10 +37,48 @@ function actionButtons(game) {
     </button>`;
 
   return `
+    ${scoutingPanel(game)}
     <h3 class="sec">練習項目<span class="hint">（挑一個，全隊一起練）</span></h3>
     <div class="acts">${menus.map(btn).join('')}</div>
     <h3 class="sec">其他</h3>
     <div class="acts">${others.map(btn).join('')}</div>`;
+}
+
+/** 招生：冬天的六週可以去看國中生 */
+function scoutingPanel(game) {
+  const w = currentWeek(game);
+  if (w?.phase !== 'winter' || !game.scouting?.candidates?.length) return '';
+
+  const year = game.schedule[game.cursor.year - 1];
+  const closeAt = year.findIndex((x) => x.scoutClose);
+  const left = Math.max(0, closeAt - (game.cursor.week - 1) + 1);
+  const fame = fameOf(game);
+
+  const rows = game.scouting.candidates.map((c) => {
+    const done = c.interest >= JOIN_THRESHOLD;
+    const w2 = Math.min(100, (c.interest / JOIN_THRESHOLD) * 100);
+    return `
+      <li class="cand${done ? ' is-in' : ''}">
+        <span class="cand__pos">${positionById(c.position)?.short || ''}</span>
+        <span class="cand__name">${c.name}</span>
+        <span class="cand__talent">${'★'.repeat(c.talent)}${'☆'.repeat(5 - c.talent)}</span>
+        <span class="cand__growth">${c.known ? growthName(c.growthType) : '？'}</span>
+        <span class="cand__bar"><i style="width:${w2}%"></i></span>
+        <span class="cand__num">${c.interest}<em>/${JOIN_THRESHOLD}</em></span>
+        <span class="cand__hint">${candidateHint(c)}</span>
+        ${done
+    ? '<span class="cand__ok">確定</span>'
+    : `<button type="button" class="btn btn--tiny" data-act="scout:${c.id}">去看</button>`}
+      </li>`;
+  }).join('');
+
+  return `
+    <h3 class="sec">招生
+      <span class="hint">注目度 ${fame}　招生截止還有 ${left} 週</span>
+    </h3>
+    <p class="scout__lead">去看一次就多一分好感。好感度到 ${JOIN_THRESHOLD} 他就會來。
+      <b>贏球會讓招生變容易</b> —— 注目度高的話，好學生一開始就有好感。</p>
+    <ul class="cands">${rows}</ul>`;
 }
 
 /** 上一週做了什麼、隊伍長了多少。這是玩家最想看到的回饋 */
@@ -51,6 +94,30 @@ function lastResultBox(game) {
         ${weekGames(l.results)}
         ${lost ? '<p class="last__note">被淘汰了。後面的比賽週會變成練習週。</p>' : ''}
       </div>`;
+  }
+
+  if (l.scoutResult) {
+    const j = l.scoutResult.joined.map((x) => `
+      <li><b>${x.name}</b> ${positionById(x.position)?.short || ''}
+        <span class="cand__talent">${'★'.repeat(x.talent)}</span></li>`).join('');
+    const m = l.scoutResult.missed.map((x) => `
+      <li class="muted">${x.name} ★${x.talent}（好感度只有 ${x.interest}，跑掉了）</li>`).join('');
+    return `<div class="last last--${j ? 'win' : 'lose'}">
+      <span class="last__head">上一週：招生截止</span>
+      ${j ? `<h4 class="bs__h">確定入學（四月報到）</h4><ul class="grew">${j}</ul>` : ''}
+      ${m ? `<h4 class="bs__h">沒招到</h4><ul class="grew">${m}</ul>` : ''}
+      ${!j ? '<p class="last__note">一個都沒招到。四月會有幾個自己來的，但都很弱。</p>' : ''}
+    </div>`;
+  }
+
+  if (l.scoutVisit) {
+    return `<div class="last last--plain">
+      <span class="last__head">上一週：${l.action}</span>
+      <div class="last__row">
+        <span class="delta"><i>好感度</i><b>+${l.scoutVisit.gained}</b></span>
+        <span class="muted">現在 ${l.scoutVisit.interest} / ${JOIN_THRESHOLD}</span>
+      </div>
+    </div>`;
   }
 
   if (l.retired) {

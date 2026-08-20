@@ -17,8 +17,12 @@ import {
   healthy, isInjured, injure, healWeek, matchInjuryChance, trainInjuryChance,
 } from './injury.js';
 import {
-  advanceYear, addRecruits, active, retireSeniors, MIN_PLAYERS,
+  advanceYear, addRecruits, active, retireSeniors,
+  MIN_PLAYERS, ROSTER_LIMIT, matchRoster,
 } from './roster.js';
+import {
+  generateCandidates, visitCandidate, resolveScouting, fameOf,
+} from './scouting.js';
 
 // ── 比賽的資格關聯 ──────────────────────────────────────
 // 地區大賽輸了就沒有甲子園；秋季縣大賽輸了就沒有秋季地區大賽，
@@ -61,7 +65,7 @@ export const isRunOver = (game) => currentWeek(game) === null;
 export const SPECIAL_ACTIONS = [
   { id: 'practice', name: '練習賽', desc: '不長能力，但可以把士氣計時器往回撥 4 週' },
   { id: 'rest', name: '休息', desc: '消疲勞（疲勞系統還沒做）', todo: true },
-  { id: 'scout', name: '招生', desc: '去談新生（還沒做）', todo: true, window: 'winter' },
+  { id: 'scout', name: '招生', desc: '去看國中生，提高他來的意願', window: 'winter' },
   { id: 'recon', name: '偵察對手', desc: '看下一場的對手（還沒做）', todo: true, window: 'preMatch' },
 ];
 
@@ -167,7 +171,9 @@ export function playWeek(game, rng = Math.random) {
     const cannotPitch = ours
       .filter((p) => (pitchedThisWeek.get(p.id) || 0) >= WEEKLY_PITCH_LIMIT)
       .map((p) => p.id);
-    const mine = buildLineup(ours, { cannotPitch });
+    // 一場比賽只能登錄 20 人（真實規則），從能上場的人裡面挑
+    const registered = matchRoster(ours);
+    const mine = buildLineup(registered, { cannotPitch });
     const theirLineup = buildLineup(opp.players);
 
     // 甲子園本戰沒有提前結束，地區大賽和秋季大賽有
@@ -271,6 +277,14 @@ export function takeAction(game, actionId, rng = Math.random) {
     if (actionId === 'practice') {
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'practice');
       log.action = '練習賽';
+    } else if (actionId?.startsWith('scout:')) {
+      const c = game.scouting?.candidates.find((x) => x.id === actionId.slice(6));
+      if (c) {
+        const gained = visitCandidate(c, rng);
+        log.action = `去看 ${c.name}`;
+        log.scoutVisit = { name: c.name, gained, interest: c.interest };
+      }
+      game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'rest');
     } else if (menuById(actionId)) {
       // 養傷中的人不參加練習
       const players = healthy(active(game.team.players));
@@ -295,6 +309,17 @@ export function takeAction(game, actionId, rng = Math.random) {
       log.retired = retireSeniors(game.team.players);
       log.joined = fillToMinimum(game, rng);
     }
+  }
+
+  // 招生截止：好感度夠的會來，不夠的就跑掉
+  if (w.scoutClose && game.scouting) {
+    const { joined, missed } = resolveScouting(game.scouting.candidates, rng);
+    game.pendingRecruits = joined;
+    log.scoutResult = {
+      joined: joined.map((p) => ({ name: p.name, talent: p.talent, position: p.position })),
+      missed,
+    };
+    game.scouting = null;
   }
 
   // 每過一週，養傷的人就好一點
@@ -373,30 +398,60 @@ function step(game, rng) {
   game.cursor.week += 1;
   game.cursor.abs += 1;
 
-  if (game.cursor.week <= year.length) return;
-
-  // 這一年結束了
-  if (game.cursor.year >= game.schedule.length) {
-    game.cursor.week = year.length + 1;   // 超出範圍 = 這一局結束
-    return;
+  if (game.cursor.week > year.length) {
+    // 這一年結束了
+    if (game.cursor.year >= game.schedule.length) {
+      game.cursor.week = year.length + 1;   // 超出範圍 = 這一局結束
+      return;
+    }
+    game.cursor.year += 1;
+    game.cursor.week = 1;
+    rollOver(game, rng);
   }
-  game.cursor.year += 1;
-  game.cursor.week = 1;
-  rollOver(game, rng);
+
+  // 走到招生視窗的第一週，就把這一年的名單生出來
+  const nw = currentWeek(game);
+  if (nw?.scoutOpen && !game.scouting) {
+    game.scouting = { candidates: generateCandidates(game, rng) };
+  }
 }
 
-/** 換年：三年級畢業、其他人升一級、新生入隊 */
+/**
+ * 換年：三年級畢業、其他人升一級、冬天招到的新生入隊。
+ * 招生沒招到人的話，還是會有幾個自己跑來入部的（都很弱）。
+ */
 function rollOver(game, rng) {
   const { players, graduated } = advanceYear(game.team.players);
-  const count = 4 + Math.floor(rng() * 4);
-  const recruits = Array.from({ length: count }, () => createPlayer({
+
+  const scouted = game.pendingRecruits || [];
+  game.pendingRecruits = null;
+
+  // 每年四月本來就會有一批自己來報名的普通學生。
+  // 招生是為了拿到「好的」，不是為了湊人數。
+  const walkOnCount = 5 + Math.floor(rng() * 4);
+  const walkOns = Array.from({ length: walkOnCount }, () => createPlayer({
     gradeYear: 1,
-    talent: 1 + Math.floor(rng() * (2 + game.difficulty.scoutPool)),
+    talent: rng() < 0.75 ? 1 : 2,
     rng,
   }));
-  game.team.players = addRecruits(players, recruits);
+
+  const recruits = [...scouted, ...walkOns];
+
+  // 部員上限 25 人。超過的話從最弱的開始退部
+  let all = addRecruits(players, recruits);
+  let quit = [];
+  if (all.length > ROSTER_LIMIT) {
+    const sorted = [...all].sort((a, b) => overall(b) - overall(a));
+    quit = sorted.slice(ROSTER_LIMIT);
+    const keep = new Set(sorted.slice(0, ROSTER_LIMIT).map((p) => p.id));
+    all = all.filter((p) => keep.has(p.id));
+  }
+
+  game.team.players = all;
   game.lastRollover = {
     graduated: graduated.map((p) => p.name),
-    recruits: recruits.map((p) => p.name),
+    scouted: scouted.map((p) => ({ name: p.name, talent: p.talent })),
+    walkOns: walkOns.length,
+    quit: quit.map((p) => p.name),
   };
 }

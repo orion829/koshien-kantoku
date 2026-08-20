@@ -1097,3 +1097,83 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 
 .inj__weeks { color: var(--muted); margin-left: 6px; }
 .inj__why { color: var(--muted); font-size: 11px; margin-left: 6px; }
+
+/* ---------- 招生 ---------- */
+
+.scout__lead {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.scout__lead b { color: var(--accent); font-weight: 500; }
+
+.cands { list-style: none; margin: 0 0 4px; padding: 0; }
+
+.cand {
+  display: grid;
+  grid-template-columns: 22px 1fr 62px 44px 90px 62px 92px 54px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 5px;
+  font-size: 12.5px;
+}
+
+.cand.is-in { border-color: var(--green); }
+
+.cand__pos {
+  text-align: center;
+  background: var(--surface-2);
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.cand__name { font-weight: 500; }
+.cand__talent { color: #f0c34a; font-size: 10.5px; letter-spacing: .04em; }
+.cand__growth { color: var(--muted); font-size: 11px; text-align: center; }
+
+.cand__bar {
+  display: block;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cand__bar i { display: block; height: 100%; background: var(--accent); }
+.cand.is-in .cand__bar i { background: var(--green); }
+
+.cand__num { font-variant-numeric: tabular-nums; text-align: right; }
+.cand__num em { font-style: normal; color: var(--muted); font-size: 11px; }
+.cand__hint { color: var(--muted); font-size: 11px; }
+
+.cand__ok {
+  color: var(--green);
+  font-size: 11.5px;
+  text-align: center;
+  border: 1px solid var(--green);
+  border-radius: 4px;
+  padding: 2px 0;
+}
+
+.btn--tiny { padding: 4px 10px; font-size: 12px; }
+
+@media (max-width: 760px) {
+  .cand { grid-template-columns: 22px 1fr 62px 62px 54px; }
+  .cand__growth, .cand__bar, .cand__hint { display: none; }
+}
+
+.bench {
+  display: inline-block;
+  font-size: 10.5px;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 0 6px;
+  margin-top: 5px;
+}

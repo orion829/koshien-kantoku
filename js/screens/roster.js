@@ -4,13 +4,13 @@ import {
 import {
   overall, overallGrade, isPitcher, playerVelocity, fieldingAt,
 } from '../rules/player.js';
-import { rosterSummary, ROSTER_LIMIT, active } from '../rules/roster.js';
+import { rosterSummary, ROSTER_LIMIT, MATCH_ROSTER, active, matchRoster } from '../rules/roster.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const gradeYearLabel = (n) => `${n}年`;
 
 /** 一列球員（收合狀態） */
-function playerRow(p) {
+function playerRow(p, registered) {
   const pos = positionById(p.position);
   const main = isPitcher(p) ? PITCHER_STATS : BATTER_STATS;
   const chips = main
@@ -36,6 +36,7 @@ function playerRow(p) {
         <span class="player__talent">${stars(p.talent)}</span>
         <span class="player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
       </button>
+      ${registered && !registered.has(p.id) ? '<span class="bench">板凳</span>' : ''}
       <div class="player__stats">${chips}</div>
       ${skills ? `<div class="player__skills">${skills}</div>` : ''}
       <div class="player__detail" hidden></div>
@@ -103,6 +104,10 @@ export function renderRoster(root, game) {
   const s = rosterSummary(game.team.players);
   const arch = game.team.archetype;
 
+  // 現在如果要比賽，這 20 個人會被登錄
+  const registered = new Set(matchRoster(players.filter((p) => !p.injury || p.injury.weeks <= 0))
+    .map((p) => p.id));
+
   const groups = [3, 2, 1].map((gy) => {
     const list = players.filter((p) => p.gradeYear === gy);
     if (!list.length) return '';
@@ -113,7 +118,7 @@ export function renderRoster(root, game) {
           <span class="grade-group__count">${list.length} 人</span>
           ${gy === 3 ? '<span class="warn">八月退隊</span>' : ''}
         </h3>
-        <ul class="players">${list.map(playerRow).join('')}</ul>
+        <ul class="players">${list.map((p) => playerRow(p, registered)).join('')}</ul>
       </section>`;
   }).join('');
 
@@ -135,9 +140,11 @@ export function renderRoster(root, game) {
         <li><b class="g g--${overallGrade(s.best)}">${overallGrade(s.best)}</b><span>最強球員</span></li>
       </ul>
 
-      ${s.overLimit > 0 ? `<p class="notice">
-        比賽只能登錄 ${ROSTER_LIMIT} 人，你現在有 ${s.total} 人。
-        <strong>七月抽籤那一週要砍掉 ${s.overLimit} 個人。</strong>
+      ${s.total > MATCH_ROSTER ? `<p class="notice">
+        部員上限 ${ROSTER_LIMIT} 人，你現在有 ${s.total} 人。
+        但<strong>比賽只能登錄 ${MATCH_ROSTER} 人</strong>——
+        有 ${s.total - MATCH_ROSTER} 個人要坐看台。名字旁邊有
+        <span class="bench">板凳</span> 的就是這場上不了的。
       </p>` : ''}
 
       ${groups}

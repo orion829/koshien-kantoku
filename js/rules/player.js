@@ -4,8 +4,9 @@
 // 投手一定要上場打擊。你的王牌如果完全不會打，第九棒就是一個洞。
 
 import {
-  MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, POSITION_NEIGHBOURS,
+  MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS,
   APTITUDE_PENALTY, GRADES, grade, velocityKmh, skillsFor, rollGrowthType,
+  POSITION_AFFINITY, APTITUDE_LETTERS,
 } from '../data/abilities.js';
 import { randomPersonName } from '../data/names.js';
 
@@ -48,14 +49,33 @@ const talentBase = (talent) => 18 + talent * 8;
  */
 export const GROWTH_PER_YEAR = 12;
 
-/** 生成守備適性。主位置是 A，相鄰位置比較好，其他很差 */
+/**
+ * 生成守備適性。
+ * 主位置一定是 A。相近的位置依「有多近」給 B〜D，其他給 E〜G。
+ *
+ * 每個人還有一個「萬能程度」：有些人天生就守得了很多位置，
+ * 有些人只會守一個。這讓 25 人名單的排列組合有意義。
+ */
 function makeAptitudes(main, rng) {
-  const near = POSITION_NEIGHBOURS[main] || [];
+  const aff = POSITION_AFFINITY[main] || [];
+  const versatile = rng();          // 0〜1，越高越萬能
   const out = {};
+
   for (const p of POSITIONS) {
-    if (p.id === main) out[p.id] = 'A';
-    else if (near.includes(p.id)) out[p.id] = rng() < 0.5 ? 'B' : 'C';
-    else if (p.id === 'P' || p.id === 'C') out[p.id] = 'G';
+    if (p.id === main) { out[p.id] = 'A'; continue; }
+
+    const idx = aff.indexOf(p.id);
+    if (idx >= 0) {
+      // 相近的位置：排越前面越好，再加上這個人的萬能程度。
+      // 萬能的人第二第三位置也有 B，只會守一個位置的人就只剩 D、E。
+      const score = Math.min(6, Math.round(4.8 - idx * 0.9 + versatile * 2.6));
+      out[p.id] = APTITUDE_LETTERS[clamp(score, 1, 6)];
+      continue;
+    }
+
+    // 不相近的位置。投手誰都守不了
+    if (p.id === 'P') { out[p.id] = 'G'; continue; }
+    if (versatile > 0.8 && rng() < 0.35) out[p.id] = 'E';
     else out[p.id] = rng() < 0.5 ? 'F' : 'G';
   }
   return out;

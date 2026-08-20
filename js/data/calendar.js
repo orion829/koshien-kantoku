@@ -113,6 +113,9 @@ export function buildYear(wins) {
     ['最後招生談判', '1月'],
     ['確定新生（招生截止）', '2月'],
   ].forEach(([event, month]) => plain('winter', event, month, 'training'));
+  // 招生視窗的頭尾。第一週生出名單，最後一週結算
+  w[w.length - 6].scoutOpen = true;
+  w[w.length - 1].scoutClose = true;
 
   // ── 春天（春季甲子園） ──────────────────────────────
   plain('senbatsu', '春季甲子園選拔公布 ／ 畢業典禮', '3月初', 'transition');

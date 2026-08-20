@@ -97,11 +97,40 @@ export function createRoster({ archetype = null, rng = Math.random } = {}) {
 
 // ── 隊伍的統計 ──────────────────────────────────────────
 
-/** 能登錄比賽的名單上限（照真實規則） */
-export const ROSTER_LIMIT = 20;
+/** 隊伍能養幾個部員 */
+export const ROSTER_LIMIT = 25;
+
+/** 比賽能登錄幾個人（照真實規則）。養 25 個，但只有 20 個能上場 */
+export const MATCH_ROSTER = 20;
 
 /** 人數不足要組聯合隊伍的門檻（照真實規則） */
 export const MIN_PLAYERS = 9;
+
+/**
+ * 挑出這場比賽要登錄的 20 個人。
+ * 先確保投手和捕手夠，剩下的照整體評價挑。
+ * 沒被選上的人這場就是看台上的觀眾。
+ */
+export function matchRoster(players, limit = MATCH_ROSTER) {
+  const pool = [...players].sort((a, b) => overall(b) - overall(a));
+  if (pool.length <= limit) return pool;
+
+  const picked = [];
+  const take = (filter, n) => {
+    for (const p of pool) {
+      if (picked.length >= limit || picked.filter(filter).length >= n) break;
+      if (filter(p) && !picked.includes(p)) picked.push(p);
+    }
+  };
+
+  take((p) => p.position === 'P', 3);        // 一週三場，至少要三個投手
+  take((p) => p.position === 'C', 2);        // 捕手也要備援
+  for (const p of pool) {
+    if (picked.length >= limit) break;
+    if (!picked.includes(p)) picked.push(p);
+  }
+  return picked;
+}
 
 /**
  * 還在隊上的人。三年級八月退隊之後就不算在內了
