@@ -6,12 +6,18 @@ import { drawPerks, pickTransferWeek } from './rules/roguelike.js';
 const SAVE_KEY = 'koshien-kantoku:save:v10';
 export const SAVE_VERSION = 10;
 
-/** 從開始畫面的輸入建立一份新的遊戲存檔 */
-export function createGame({ managerName, schoolName, prefectureId }) {
+/**
+ * 從開始畫面的輸入建立一份新的遊戲存檔。
+ * numYears 預設 3（遊戲設計就是「三個夏天」），不對玩家開放，
+ * 只是讓長局測試（例如跑 15 年看系統穩不穩）不用改這個函式。
+ */
+export function createGame({
+  managerName, schoolName, prefectureId, numYears = 3,
+}) {
   const pref = byId(prefectureId);
   if (!pref) throw new Error(`unknown prefecture: ${prefectureId}`);
 
-  const schedule = buildRun(pref.wins);
+  const schedule = buildRun(pref.wins, numYears);
   // 你接手的隊伍。開局種類是這個遊戲最重要的隨機性
   const { archetype, players } = createRoster();
 
@@ -46,7 +52,7 @@ export function createGame({ managerName, schoolName, prefectureId }) {
     // 士氣計時器（距離上一場正式比賽過了幾週）
     morale: { weeksSinceMatch: 0 },
     // 那一年各項比賽有沒有被淘汰
-    progress: [1, 2, 3].map(() => ({
+    progress: schedule.map(() => ({
       regional: null, koshien: null, autumn: null, autumnArea: null, senbatsu: null,
     })),
 

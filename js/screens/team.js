@@ -6,12 +6,24 @@ import { renderSchedule } from './schedule.js';
 import { radarSVG } from './radar.js';
 import { renderTimeline } from './timeline.js';
 import { teamStrength } from '../rules/game.js';
+import { efficiency, moraleLabel } from '../rules/morale.js';
 
 const TABS = [
   { id: 'week', name: '本週', render: renderWeek },
   { id: 'roster', name: '選手名單', render: renderRoster },
   { id: 'schedule', name: '賽程表', render: renderSchedule },
 ];
+
+/** 士氣一直顯示在主畫面上，不用切到「本週」才看得到 */
+function moraleBadge(game) {
+  const c = game.morale.weeksSinceMatch;
+  const eff = efficiency(c);
+  const cls = eff === 1 ? 'good' : eff >= 0.75 ? 'mid' : eff >= 0.5 ? 'bad' : 'worse';
+  return `
+    <span class="morale-badge morale-badge--${cls}">
+      <i>士氣</i><b>${moraleLabel(c)}</b><em>練習效率 ${Math.round(eff * 100)}%</em>
+    </span>`;
+}
 
 /** 上任之後的主畫面 */
 export function renderTeam(root, game, onReset) {
@@ -29,6 +41,7 @@ export function renderTeam(root, game, onReset) {
             ・<span class="tier">${game.difficulty.tier}</span>
           </p>
           <p class="masthead__str">戰力 <b id="teamStr">${teamStrength(game.team.players)}</b></p>
+          <div id="moraleBadge">${moraleBadge(game)}</div>
         </div>
         <div class="masthead__radar" id="radarBox">${radarSVG(game.team.players)}</div>
 
@@ -61,6 +74,7 @@ export function renderTeam(root, game, onReset) {
     root.querySelector('#radarBox').innerHTML = radarSVG(game.team.players);
     root.querySelector('#teamStr').textContent = teamStrength(game.team.players);
     root.querySelector('#timelineBox').innerHTML = renderTimeline(game);
+    root.querySelector('#moraleBadge').innerHTML = moraleBadge(game);
     draw();
   }
 

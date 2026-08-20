@@ -1,7 +1,11 @@
 // 招生
 //
 // 冬天的六週可以去找國中生。每去看一次，對方對你的學校就多一分好感。
-// 好感度到 60 就會來，時間到還不夠就跑掉了。
+// 好感度到門檻就會來，時間到還不夠就跑掉了。
+//
+// **越強的候選人門檻越高、每次去看能加的好感也越少**——
+// 天賦 1 星幾乎用不到一次拜訪，5 星幾乎要把整個招生季都花在他身上，
+// 名氣不夠高的學校根本追不到。
 //
 // 最重要的一條：**贏球會讓招生變容易**。
 // 打進甲子園的學校，好學生自己會來；連地區大賽都出不去的，
@@ -12,8 +16,11 @@ import { randomPersonName } from '../data/names.js';
 import { POSITIONS, GROWTH_TYPES } from '../data/abilities.js';
 import { modifiers } from './roguelike.js';
 
-/** 好感度到這裡就會入學 */
-export const JOIN_THRESHOLD = 60;
+/**
+ * 好感度到這裡就會入學。天賦越高門檻越高——
+ * 1星 47、3星 65、5星 83，六週的招生季全押在同一個人身上也未必湊得到頂級天才。
+ */
+export const thresholdFor = (talent) => 38 + talent * 9;
 
 /** 各種成績能換到多少注目度 */
 const FAME = {
@@ -89,6 +96,7 @@ export function generateCandidates(game, rng = Math.random) {
       talent,
       growthType,
       interest,
+      threshold: thresholdFor(talent),
       visits: 0,
       known: mods.scoutKnown,   // 有「伯樂」的話一開始就看得到
     };
@@ -97,8 +105,8 @@ export function generateCandidates(game, rng = Math.random) {
 
 /** 去看一個人。回傳這次加了多少好感度 */
 export function visitCandidate(candidate, rng = Math.random) {
-  // 天才比較難打動
-  const gain = Math.round(26 - candidate.talent * 2.5 + rng() * 12);
+  // 天才比較難打動——越強的人，每次拜訪能加的好感越少
+  const gain = Math.max(1, Math.round(24 - candidate.talent * 3.4 + rng() * 11));
   candidate.interest = Math.min(100, candidate.interest + gain);
   candidate.visits += 1;
   candidate.known = true;
@@ -114,7 +122,7 @@ export function resolveScouting(candidates, rng = Math.random) {
   const missed = [];
 
   candidates.forEach((c) => {
-    if (c.interest >= JOIN_THRESHOLD) {
+    if (c.interest >= (c.threshold ?? thresholdFor(c.talent))) {
       joined.push(createPlayer({
         gradeYear: 1,
         talent: c.talent,
@@ -133,11 +141,11 @@ export function resolveScouting(candidates, rng = Math.random) {
 
 /** 給畫面用的說明文字 */
 export function candidateHint(c) {
-  const left = JOIN_THRESHOLD - c.interest;
+  const left = (c.threshold ?? thresholdFor(c.talent)) - c.interest;
   if (left <= 0) return '確定會來';
-  if (left <= 25) return '再去一次就穩了';
-  if (left <= 50) return '還要去兩次';
-  return '很難挖';
+  if (left <= 15) return '再去一次就穩了';
+  if (left <= 35) return '還要去兩三次';
+  return '天賦太高，很難挖';
 }
 
 export const growthName = (id) => GROWTH_TYPES[id]?.name || '普通';

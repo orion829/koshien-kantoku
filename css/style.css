@@ -1477,3 +1477,26 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 .event--awaken .event__title { color: var(--blue); }
 
 .log--awaken .log__body { color: var(--blue); }
+
+/* ---------- 主畫面常駐的士氣標示 ---------- */
+
+.morale-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.morale-badge i { font-style: normal; color: var(--muted); }
+.morale-badge b { font-size: 14px; font-weight: 600; }
+.morale-badge em {
+  font-style: normal;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.morale-badge--good b { color: var(--green); }
+.morale-badge--mid b { color: var(--accent); }
+.morale-badge--bad b { color: var(--danger); }
+.morale-badge--worse b { color: var(--danger); text-decoration: underline wavy; }

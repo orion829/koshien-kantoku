@@ -6,7 +6,7 @@ import { isInjured } from '../rules/injury.js';
 import { weekGames, bindGameCards } from './boxscore.js';
 import { positionById } from '../data/abilities.js';
 import {
-  fameOf, JOIN_THRESHOLD, candidateHint, growthName,
+  fameOf, candidateHint, growthName,
 } from '../rules/scouting.js';
 import {
   perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer, resolveAwaken,
@@ -179,8 +179,8 @@ function scoutingPanel(game) {
   const fame = fameOf(game);
 
   const rows = game.scouting.candidates.map((c) => {
-    const done = c.interest >= JOIN_THRESHOLD;
-    const w2 = Math.min(100, (c.interest / JOIN_THRESHOLD) * 100);
+    const done = c.interest >= c.threshold;
+    const w2 = Math.min(100, (c.interest / c.threshold) * 100);
     return `
       <li class="cand${done ? ' is-in' : ''}">
         <span class="cand__pos">${positionById(c.position)?.short || ''}</span>
@@ -188,7 +188,7 @@ function scoutingPanel(game) {
         <span class="cand__talent">${'★'.repeat(c.talent)}${'☆'.repeat(5 - c.talent)}</span>
         <span class="cand__growth">${c.known ? growthName(c.growthType) : '？'}</span>
         <span class="cand__bar"><i style="width:${w2}%"></i></span>
-        <span class="cand__num">${c.interest}<em>/${JOIN_THRESHOLD}</em></span>
+        <span class="cand__num">${c.interest}<em>/${c.threshold}</em></span>
         <span class="cand__hint">${candidateHint(c)}</span>
         ${done
     ? '<span class="cand__ok">確定</span>'
@@ -200,7 +200,8 @@ function scoutingPanel(game) {
     <h3 class="sec">招生
       <span class="hint">注目度 ${fame}　招生截止還有 ${left} 週</span>
     </h3>
-    <p class="scout__lead">去看一次就多一分好感。好感度到 ${JOIN_THRESHOLD} 他就會來。
+    <p class="scout__lead">去看一次就多一分好感，好感度到門檻他就會來。
+      <b>天賦越高門檻越高</b>——天才要花好幾次拜訪才追得到。
       <b>贏球會讓招生變容易</b> —— 注目度高的話，好學生一開始就有好感。</p>
     <ul class="cands">${rows}</ul>`;
 }
@@ -269,7 +270,7 @@ function lastResultBox(game) {
       <span class="last__head">上一週：${l.action}</span>
       <div class="last__row">
         <span class="delta"><i>好感度</i><b>+${l.scoutVisit.gained}</b></span>
-        <span class="muted">現在 ${l.scoutVisit.interest} / ${JOIN_THRESHOLD}</span>
+        <span class="muted">現在 ${l.scoutVisit.interest} / ${l.scoutVisit.threshold}</span>
       </div>
     </div>`;
   }

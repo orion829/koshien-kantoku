@@ -15,6 +15,7 @@ import * as M from '../js/rules/morale.js';
 import * as RG from '../js/rules/roguelike.js';
 import * as G from '../js/rules/game.js';
 import * as ST from '../js/state.js';
+import * as S from '../js/rules/scouting.js';
 
 const med = (v) => v.slice().sort((a, b) => a - b)[Math.floor(v.length / 2)];
 const fmt = (v) => (A.grade(Math.round(v)) + Math.round(v)).padEnd(5);
@@ -231,6 +232,31 @@ head('隊伍：三年級退隊後不能沒有投手／捕手，一二年級加�
     + `　中位數 ${med(continuing)} 人（要 >= ${R.CONTINUING_MIN}）`);
 }
 
+head('招生：越強的候選人越難追，六週的招生季全押同一人才追得到頂級天才');
+{
+  // 模擬「這六週都拿去拜訪同一個候選人」，看幾次拜訪能到門檻
+  const visitsNeeded = (talent, fame) => {
+    let interest = Math.max(0, Math.min(55, Math.round(18 + fame * 1.4 - (talent - 2) * 12 + 5)));
+    const threshold = S.thresholdFor(talent);
+    let visits = 0;
+    const c = { talent, interest };
+    while (c.interest < threshold && visits < 20) {
+      S.visitCandidate(c, Math.random);
+      visits += 1;
+    }
+    return { visits, threshold, capped: visits >= 20 };
+  };
+
+  console.log('  候選人天賦 ／ 學校注目度 → 六週內拜訪幾次才追得到（超過 6 代表追不到）');
+  for (const fame of [0, 20, 35]) {
+    const row = [1, 3, 5].map((t) => {
+      const { visits, threshold } = visitsNeeded(t, fame);
+      return `★${t}(門檻${threshold}) ${visits}次`;
+    }).join('　');
+    console.log(`  注目度 ${String(fame).padEnd(3)} ${row}`);
+  }
+}
+
 // ── 7. roguelike：對手特色、作戰、傳統 ──────────────────
 head('對手特色：平均起來要接近 0，不然強度階梯會失準');
 {
@@ -352,6 +378,49 @@ head('一整局：三選一 5 次、轉學生 3 次、事件每個練習週都�
     + `（機率設計上大約 0.4〜0.6）`);
   console.log(`  亂玩的最終戰力 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
     + `（認真玩要明顯更高）`);
+}
+
+head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一定會抽光）');
+{
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  let crash = 0;
+  let stuck = 0;
+  const strengths = [];
+  const rosterMins = [];
+
+  for (let n = 0; n < 12; n += 1) {
+    const g = ST.createGame({
+      managerName: '長局測試', schoolName: '長局高校', prefectureId: 'aichi', numYears: 15,
+    });
+    try {
+      let guard = 0;
+      let minRoster = 999;
+      while (!G.isRunOver(g) && guard < 3000) {
+        guard += 1;
+        minRoster = Math.min(minRoster, R.active(g.team.players).length);
+        if (g.pendingDraft?.length) { RG.choosePerk(g, pick(g.pendingDraft)); continue; }
+        if (g.pendingTransfer) { RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet'); continue; }
+        if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
+        if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
+        if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
+        const w = G.currentWeek(g);
+        const acts = G.availableActions(g).filter((a) => !a.todo && !a.id.startsWith('scout'));
+        G.takeAction(g, w.kind === 'training' ? pick(acts).id : null);
+      }
+      if (guard >= 3000) stuck += 1;
+      strengths.push(G.teamStrength(g.team.players));
+      rosterMins.push(minRoster);
+    } catch (e) {
+      crash += 1;
+      console.log(`  當掉了：${e.message}`);
+    }
+  }
+  strengths.sort((a, b) => a - b);
+  const ok = (n) => (n === 0 ? 'OK' : `壞了 (${n})`);
+  console.log(`  跑完 ${strengths.length}/12 局 15 年　當掉 ${ok(crash)}　卡住 ${ok(stuck)}`);
+  console.log(`  最終戰力 最小 ${strengths[0]} 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
+    + ` 最大 ${strengths.at(-1)}`);
+  console.log(`  過程中人數最低點 ${Math.min(...rosterMins)}（要 >= ${R.MIN_PLAYERS}）`);
 }
 
 console.log('');

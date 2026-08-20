@@ -309,7 +309,9 @@ export function takeAction(game, actionId, rng = Math.random) {
       if (c) {
         const gained = visitCandidate(c, rng);
         log.action = `去看 ${c.name}`;
-        log.scoutVisit = { name: c.name, gained, interest: c.interest };
+        log.scoutVisit = {
+          name: c.name, gained, interest: c.interest, threshold: c.threshold,
+        };
       }
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'rest');
     } else if (menuById(actionId)) {
@@ -448,8 +450,12 @@ function step(game, rng) {
   }
 
   // roguelike：三選一、突發事件、轉學生、作戰
+  // 傳統只有 14 張，長局（例如跑很多年）可能會抽光——
+  // 抽光的話就不要塞一個空陣列進去，不然畫面不會顯示，
+  // 但 takeAction 的擋鍵還是會把玩家永遠卡住。
   if (nw.draft && !game.pendingDraft) {
-    game.pendingDraft = drawPerks(game, 3, rng);
+    const drawn = drawPerks(game, 3, rng);
+    if (drawn.length) game.pendingDraft = drawn;
   }
   if (nw.kind === 'training') {
     // 一週最多跳一張卡：轉學生優先，再來是覺醒，最後才是一般事件

@@ -128,19 +128,23 @@ export function buildYear(wins) {
 }
 
 /**
- * 生成一整局（三年）的賽程。
+ * 生成一整局的賽程，預設三年（遊戲設計就是「三個夏天」），
+ * 但也可以指定 numYears 跑更長——主要是拿來測試長局穩不穩，
+ * 不是給玩家選的難度選項。
  *   第1年：六月上任 → 跳過春天那 6 週
- *   第3年：夏天甲子園冠軍賽打完就結束
+ *   中間每一年：完整春夏秋冬
+ *   最後一年：夏天甲子園冠軍賽打完就結束
  */
-export function buildRun(wins) {
+export function buildRun(wins, numYears = 3) {
   const full = buildYear(wins);
   const summerEnd = full.findIndex((x) => x.phase === 'handover');
 
-  const years = [
-    full.slice(6).map((x) => ({ ...x })),
-    full.map((x) => ({ ...x })),
-    full.slice(0, summerEnd).map((x) => ({ ...x })),
-  ];
+  const years = [];
+  for (let i = 0; i < numYears; i += 1) {
+    if (i === numYears - 1) years.push(full.slice(0, summerEnd).map((x) => ({ ...x })));
+    else if (i === 0) years.push(full.slice(6).map((x) => ({ ...x })));
+    else years.push(full.map((x) => ({ ...x })));
+  }
 
   let abs = 0;
   years.forEach((year, i) => {
@@ -153,8 +157,8 @@ export function buildRun(wins) {
   return years;
 }
 
-export function runSummary(wins) {
-  const years = buildRun(wins);
+export function runSummary(wins, numYears = 3) {
+  const years = buildRun(wins, numYears);
   const flat = years.flat();
   const count = (k) => flat.filter((x) => x.kind === k).length;
   const officialGames = flat
