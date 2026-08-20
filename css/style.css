@@ -1319,3 +1319,127 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
   .picks, .picks--two { grid-template-columns: 1fr; }
   .perk em { display: none; }
 }
+
+/* ---------- 選單（重新開始藏在這裡） ---------- */
+
+.masthead--team { position: relative; }
+
+.menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.menu__btn {
+  font-family: inherit;
+  font-size: 20px;
+  line-height: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.menu__btn:hover { border-color: var(--accent); color: var(--text); }
+
+.menu__panel {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+
+.menu__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.menu__item:hover { background: var(--surface-2); }
+
+.menu__item--danger { color: var(--danger); }
+.menu__item--danger.is-confirm {
+  background: rgba(221, 122, 104, .16);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+@media (max-width: 620px) {
+  .menu { position: static; margin-top: 12px; }
+  .menu__panel { right: 0; left: auto; }
+}
+
+/* ---------- 一年的時間線 ---------- */
+
+.timeline {
+  margin: 18px 0 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px 14px 10px;
+}
+
+.timeline__head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: .04em;
+  margin-bottom: 8px;
+}
+
+.timeline__pos { font-variant-numeric: tabular-nums; color: var(--text); }
+
+.timeline__row {
+  display: flex;
+  gap: 1px;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tl { display: block; background: var(--line); }
+.tl--match { background: var(--accent); }
+.tl--training { background: var(--green); }
+.tl--transition { background: var(--muted); }
+
+.tl.is-now {
+  outline: 2px solid var(--text);
+  outline-offset: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.timeline__phases {
+  display: flex;
+  margin-top: 6px;
+  gap: 1px;
+}
+
+.tl-phase {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-top: 1px solid var(--line);
+  padding-top: 3px;
+}

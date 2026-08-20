@@ -48,6 +48,7 @@ export const UI = {
   scheduleNote2: '打上去才會有的週，輸了就變成練習週（也可以拿來打練習賽）。遊戲主要玩法還沒做。',
   toKoshien: '進甲子園要贏',
   resetBtn: '重新開始',
+  resetConfirm: '再按一次，真的重來？',
   kindMatch: '比賽',
   kindTraining: '練習',
   kindTransition: '過場',

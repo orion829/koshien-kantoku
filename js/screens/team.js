@@ -4,6 +4,7 @@ import { renderWeek } from './week.js';
 import { renderRoster } from './roster.js';
 import { renderSchedule } from './schedule.js';
 import { radarSVG } from './radar.js';
+import { renderTimeline } from './timeline.js';
 import { teamStrength } from '../rules/game.js';
 
 const TABS = [
@@ -30,15 +31,24 @@ export function renderTeam(root, game, onReset) {
           <p class="masthead__str">戰力 <b id="teamStr">${teamStrength(game.team.players)}</b></p>
         </div>
         <div class="masthead__radar" id="radarBox">${radarSVG(game.team.players)}</div>
+
+        <div class="menu" id="menu">
+          <button type="button" class="menu__btn" id="menuBtn" aria-label="選單">⋯</button>
+          <div class="menu__panel" id="menuPanel" hidden>
+            <button type="button" class="menu__item menu__item--danger" id="resetBtn">
+              ${UI.resetBtn}
+            </button>
+          </div>
+        </div>
       </header>
+
+      <div id="timelineBox">${renderTimeline(game)}</div>
 
       <nav class="tabs" id="tabs">
         ${TABS.map((t) => `<button type="button" class="tab" data-tab="${t.id}">${t.name}</button>`).join('')}
       </nav>
 
       <div id="tabContent"></div>
-
-      <button type="button" class="btn btn--ghost btn--wide" id="resetBtn">${UI.resetBtn}</button>
     </div>`;
 
   const content = root.querySelector('#tabContent');
@@ -47,9 +57,10 @@ export function renderTeam(root, game, onReset) {
   // 做完一個行動之後：存檔、重畫
   function afterAction() {
     save(game);
-    // 能力變了，雷達圖和戰力要跟著更新
+    // 能力變了，雷達圖、戰力、時間線都要跟著更新
     root.querySelector('#radarBox').innerHTML = radarSVG(game.team.players);
     root.querySelector('#teamStr').textContent = teamStrength(game.team.players);
+    root.querySelector('#timelineBox').innerHTML = renderTimeline(game);
     draw();
   }
 
@@ -68,6 +79,43 @@ export function renderTeam(root, game, onReset) {
     draw();
   });
 
-  root.querySelector('#resetBtn').addEventListener('click', onReset);
+  // 「重新開始」藏在選單裡，而且要按兩次才會真的重來 ——
+  // 不小心點到選單按鈕不會炸掉存檔，要點兩下才行。
+  const menu = root.querySelector('#menu');
+  const menuBtn = root.querySelector('#menuBtn');
+  const menuPanel = root.querySelector('#menuPanel');
+  const resetBtn = root.querySelector('#resetBtn');
+  let confirming = false;
+
+  function closeMenu() {
+    menuPanel.hidden = true;
+    confirming = false;
+    resetBtn.textContent = UI.resetBtn;
+    resetBtn.classList.remove('is-confirm');
+  }
+
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuPanel.hidden = !menuPanel.hidden;
+    if (menuPanel.hidden) closeMenu();
+  });
+
+  resetBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!confirming) {
+      confirming = true;
+      resetBtn.textContent = UI.resetConfirm;
+      resetBtn.classList.add('is-confirm');
+      return;
+    }
+    onReset();
+  });
+
+  // 用當時抓到的 menu 節點判斷，而不是每次重查 root ——
+  // 重來一局之後 root 會被 setup 畫面整個換掉，重查會抓到 null。
+  document.addEventListener('click', (e) => {
+    if (!menuPanel.hidden && !menu.contains(e.target)) closeMenu();
+  });
+
   draw();
 }
