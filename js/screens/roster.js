@@ -7,12 +7,13 @@ import {
 import { rosterSummary, ROSTER_LIMIT, MATCH_ROSTER, active, matchRoster } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
 import { fatigueLabel } from '../rules/fatigue.js';
+import { computeLineupSlots, lineupTag } from './lineup.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const gradeYearLabel = (n) => `${n}年`;
 
 /** 一列球員（收合狀態） */
-function playerRow(p, registered, examBanned) {
+function playerRow(p, registered, examBanned, lineupInfo) {
   const pos = positionById(p.position);
   const main = isPitcher(p) ? PITCHER_STATS : BATTER_STATS;
   const chips = main
@@ -41,12 +42,14 @@ function playerRow(p, registered, examBanned) {
         <span class="player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
       </button>
       ${registered && !registered.has(p.id) ? '<span class="bench">板凳</span>' : ''}
+      ${lineupTag(p, lineupInfo) ? `<span class="lineup-tag">${lineupTag(p, lineupInfo)}</span>` : ''}
       ${hurt ? `<span class="status-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
       ${banned ? '<span class="status-badge">📕 停賽中・學力不及格</span>' : ''}
       <div class="player__stats">${chips}
         <span class="stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>
         <span class="stat"><i>疲勞</i><b>${fatigueLabel(p.fatigue)}</b></span>
       </div>
+      <p class="player__career">生涯戰績：${careerLine(p)}</p>
       ${skills ? `<div class="player__skills">${skills}</div>` : ''}
       <div class="player__detail" hidden></div>
     </li>`;
@@ -105,8 +108,7 @@ function playerDetail(p) {
     ${skills ? `<ul class="skill-lines">${skills}</ul>` : '<p class="muted">沒有特殊能力。</p>'}
     <p class="muted">${p.throws === 'L' ? '左投' : '右投'}${p.bats === 'L' ? '左打' : '右打'}
       ・整體評價 ${overall(p)}
-      ・學力 <span class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</span></p>
-    <p class="muted">生涯戰績：${careerLine(p)}</p>`;
+      ・學力 <span class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</span></p>`;
 }
 
 export function renderRoster(root, game) {
@@ -119,6 +121,7 @@ export function renderRoster(root, game) {
   const registered = new Set(matchRoster(players.filter((p) => !p.injury || p.injury.weeks <= 0))
     .map((p) => p.id));
   const examBanned = new Set(game.examBanned || []);
+  const lineupInfo = computeLineupSlots(game);
 
   const groups = [3, 2, 1].map((gy) => {
     const list = players.filter((p) => p.gradeYear === gy);
@@ -130,7 +133,7 @@ export function renderRoster(root, game) {
           <span class="grade-group__count">${list.length} 人</span>
           ${gy === 3 ? '<span class="warn">八月退隊</span>' : ''}
         </h3>
-        <ul class="players">${list.map((p) => playerRow(p, registered, examBanned)).join('')}</ul>
+        <ul class="players">${list.map((p) => playerRow(p, registered, examBanned, lineupInfo)).join('')}</ul>
       </section>`;
   }).join('');
 

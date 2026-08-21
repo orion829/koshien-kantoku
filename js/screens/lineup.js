@@ -10,9 +10,35 @@ import { fatigueLabel } from '../rules/fatigue.js';
 import { buildLineup } from '../rules/match.js';
 
 /** 現在能上場的人（沒受傷、沒因為學力停賽） */
-function eligiblePlayers(game) {
+export function eligiblePlayers(game) {
   const banned = new Set(game.examBanned || []);
   return active(game.team.players).filter((p) => !isInjured(p) && !banned.has(p.id));
+}
+
+/**
+ * 算出「如果現在開打」AI 會怎麼排先發，回傳一個用球員 id 查棒次／
+ * 守備位置的表——給選手名單、選手預覽卡這些地方顯示「他現在打第幾棒」用，
+ * 不用整個畫面都重算一次 buildLineup。
+ */
+export function computeLineupSlots(game) {
+  const players = eligiblePlayers(game);
+  if (players.length < 9) return { slots: new Map(), starterId: null, bullpenIds: [] };
+  const { starter, bullpen, order } = buildLineup(players);
+  const slots = new Map();
+  order.forEach((slot, i) => {
+    slots.set(slot.player.id, { battingOrder: i + 1, position: slot.position });
+  });
+  return { slots, starterId: starter.id, bullpenIds: bullpen.map((p) => p.id) };
+}
+
+/** computeLineupSlots 的結果換成一小段文字，給選手名單、主頁選手卡共用 */
+export function lineupTag(p, lineupInfo) {
+  if (!lineupInfo) return '';
+  if (lineupInfo.starterId === p.id) return '⚾ 王牌先發';
+  if (lineupInfo.bullpenIds.includes(p.id)) return '牛棚';
+  const slot = lineupInfo.slots.get(p.id);
+  if (slot) return `先發第 ${slot.battingOrder} 棒・${positionById(slot.position)?.short || ''}`;
+  return '';
 }
 
 export function renderLineup(root, game) {

@@ -430,7 +430,9 @@ export function takeAction(game, actionId, rng = Math.random) {
       // 不然玩家在這一步看到的還是「還沒加上今年」的舊餘額
       game.pendingInvest = true;
     }
-    if (w.examBefore) {
+    // 遊戲的第 1 週本身就是期末考的那一週，前面完全沒有練習週可以讀書——
+    // 剛接手就把資質差的新生禁賽一整個夏天不合理，所以第一次不算
+    if (w.examBefore && w.abs !== 1) {
       const { failed } = resolveExam(game, rng);
       log.examResult = { failed };
     }

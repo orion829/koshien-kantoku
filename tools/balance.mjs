@@ -607,6 +607,42 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
     if (w2.kind === 'training') weeks += 1;
   }
   console.log(`  學力 10 分的人，選「讀書」選了 ${weeks} 次追到 50 分以上（現在 ${Math.round(target.gakuryoku)} 分）`);
+
+  // 新遊戲的第 1 週本身就是期末考，前面完全沒有練習週可以讀書——
+  // 剛接手的新生資質差就整個夏天禁賽不合理，第一次不該算
+  const pick5 = (a) => a[Math.floor(Math.random() * a.length)];
+  let weakSamples = 0;
+  let stillBannedOnOpen = 0;
+  for (let i = 0; i < 200; i += 1) {
+    const g5 = ST.createGame({
+      managerName: '開局測試', schoolName: '開局高校', prefectureId: 'aichi', numYears: 1,
+    });
+    g5.pendingDraft = null;
+    const weakest = g5.team.players.filter((p) => p.gradeYear === 1)
+      .sort((a, b) => a.gakuryoku - b.gakuryoku)[0];
+    if (!weakest || weakest.gakuryoku >= 30) continue;
+    weakSamples += 1;
+    let guard5 = 0;
+    let checked = false;
+    while (guard5 < 40 && !checked) {
+      guard5 += 1;
+      const w5 = G.currentWeek(g5);
+      if (!w5) break;
+      if (g5.pendingDraft?.length) { RG.choosePerk(g5, pick5(g5.pendingDraft)); continue; }
+      if (g5.pendingTransfer) { RG.resolveTransfer(g5, 'warm'); continue; }
+      if (g5.pendingAlumniVisit) { RG.resolveAlumniVisit(g5, 'coach'); continue; }
+      if (g5.pendingAwaken) { RG.resolveAwaken(g5, 'pass'); continue; }
+      if (g5.pendingEvent) { RG.resolveEvent(g5, 0); continue; }
+      if (g5.tacticChoices?.length && !g5.tactic) { g5.tactic = pick5(g5.tacticChoices); continue; }
+      G.takeAction(g5, w5.kind === 'training' ? 'study' : null);
+      if (w5.examBefore) {
+        if ((g5.examBanned || []).includes(weakest.id)) stillBannedOnOpen += 1;
+        checked = true;
+      }
+    }
+  }
+  console.log(`  開局學力 <30 的新生（樣本 ${weakSamples}）：第一次考試（開局那一刻）`
+    + `被禁賽 ${stillBannedOnOpen} 個（要是 0，不然剛接手就沒得選）`);
 }
 
 head('疲勞：打越多球越累，累了表現打折、更容易受傷，「休息」能大幅消除');

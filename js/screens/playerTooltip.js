@@ -8,9 +8,10 @@
 import {
   positionById, grade, GROWTH_TYPES, BATTER_STATS, PITCHER_STATS,
 } from '../data/abilities.js';
-import { overallGrade, isPitcher } from '../rules/player.js';
+import { overallGrade, isPitcher, careerLine } from '../rules/player.js';
 import { isInjured } from '../rules/injury.js';
 import { fatigueLabel } from '../rules/fatigue.js';
+import { computeLineupSlots, lineupTag } from './lineup.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -37,6 +38,7 @@ function tipHTML(p, game) {
     const g = grade(p.abilities[s.id]);
     return `<span class="player-tip__stat"><i>${s.name}</i><b class="g g--${g}">${g}</b></span>`;
   }).join('');
+  const tag = p.retired ? '' : lineupTag(p, computeLineupSlots(game));
 
   return `
     <div class="player-tip__head">
@@ -51,6 +53,8 @@ function tipHTML(p, game) {
       ${p.retired ? '<span class="player-tip__ret">已退隊</span>' : ''}
     </div>
     <div class="player-tip__stats">${chips}</div>
+    <div class="player-tip__line">生涯戰績：${careerLine(p)}</div>
+    ${tag ? `<div class="player-tip__tag">${tag}</div>` : ''}
     ${hurt ? `<div class="player-tip__warn">🤕 養傷中・還要 ${p.injury.weeks} 週</div>` : ''}
     ${banned ? '<div class="player-tip__warn">📕 停賽中・學力不及格</div>' : ''}`;
 }
