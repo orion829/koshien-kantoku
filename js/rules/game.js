@@ -16,7 +16,9 @@ import { efficiency, moraleLabel, advance, PRACTICE_FLOOR } from './morale.js';
 import {
   overall, isPitcher, createPlayer, boostPotential, accumulateCareerStats, careerLine,
 } from './player.js';
-import { generateOpponent, buildLineup, playMatch } from './match.js';
+import {
+  generateOpponent, buildLineup, playMatch, rollConditions,
+} from './match.js';
 import { randomProTeam } from '../data/proTeams.js';
 import {
   healthy, isInjured, injure, healWeek, matchInjuryChance, trainInjuryChance,
@@ -149,16 +151,22 @@ export function teamStrength(all) {
  *
  * ⚠️ 這整段是暫時的。真的比賽模擬做好之後要換掉。
  * 目標：認真玩（有練、有買校務投資升級）拿到夏季甲子園冠軍大概要
- * 　　　普通難度（贏 6 場）第 13 年左右、地獄難度（贏 8 場）第 16 年左右。
+ * 　　　普通難度（贏 6 場）第 19 年左右、地獄難度（贏 8 場）第 21 年左右——
+ * 　　　比原本（13／16 年）明顯拉長，因為原本地獄難度真的玩不用 10 年就能拿冠軍。
  * 這個對手強度不會因為玩家帶了幾年而變，所以只要有在練、有在買升級，
  * 會自然而然越打越輕鬆——用 tools/balance.mjs 的「多少年拿冠軍」驗證過。
+ *
+ * senbatsu（春季甲子園）刻意跟 koshien 抓同一個 base：春甲資格只要秋季
+ * 地區大賽贏一場就拿到（比 koshien 要求「地區大賽冠軍」寬鬆很多），
+ * 但用的是三年級剛退隊、最弱的名單——這兩個因素會互相抵銷，
+ * 用 tools/balance.mjs 的「春季甲子園漏斗」驗證過兩邊拿冠軍的機率大致對等。
  */
 const OPPONENT = {
-  regional: { base: 42, step: 2.5 },
-  koshien: { base: 51, step: 3 },
-  autumn: { base: 36, step: 5 },
+  regional: { base: 45, step: 2.5 },
+  koshien: { base: 55, step: 3 },
+  autumn: { base: 38, step: 5 },
   autumnArea: { base: 50, step: 5 },
-  senbatsu: { base: 58, step: 4 },
+  senbatsu: { base: 55, step: 4 },
 };
 
 function opponentStrength(phase, roundIndex, wins) {
@@ -216,8 +224,11 @@ export function playWeek(game, rng = Math.random, wonder = null) {
     const custom = game.customLineup;
     const pitcherId = custom?.pitchers?.length
       ? custom.pitchers[i % custom.pitchers.length] : null;
+    // 每一場都重抽一次「今天的狀態」——這才是先發野手也可能被冷板凳
+    // 換掉的理由：自動排的時候，狀態夠差的先發會被狀態好的替補比下去
+    const conditions = rollConditions(registered, rng);
     const mine = buildLineup(registered, {
-      cannotPitch, pitcherId, customOrder: custom?.order || null,
+      cannotPitch, pitcherId, customOrder: custom?.order || null, conditions,
     });
     const theirLineup = buildLineup(opp.players);
 
@@ -227,7 +238,7 @@ export function playWeek(game, rng = Math.random, wonder = null) {
     // 不然折扣會被 applyMatchOutcome 的成長永久疊進能力值裡
     const fatigueSnapshot = applyFatiguePenalty(ours);
     const m = playMatch(
-      { name: game.school.name, ...mine, mods },
+      { name: game.school.name, ...mine, mods, conditions },
       { name: opp.name, ...theirLineup, mods: opp.mods },
       rng,
       { mercy },
@@ -702,6 +713,19 @@ function rollOver(game, rng) {
   };
 
   rollOverManagers(game, rng);
+  checkProAlumniPerformance(game, rng);
+}
+
+/**
+ * 每年檢查一次：進了職棒的學長這一季表現活躍的話，母校也跟著沾光——
+ * 當年被選走時注目度越高（代表天賦、球探緣越好），越有機會在職業
+ * 站穩腳步、常常在轉播上被提到，機率不高但每個人每年都會抽一次。
+ */
+function checkProAlumniPerformance(game, rng) {
+  (game.proAlumni || []).forEach((a) => {
+    const chance = clamp(0.05 + (a.attention || 0) / 400, 0.05, 0.25);
+    if (rng() < chance) game.extraFame = (game.extraFame || 0) + 3;
+  });
 }
 
 /**

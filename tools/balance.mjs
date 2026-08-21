@@ -567,7 +567,85 @@ head('多少年拿冠軍：認真玩（有練、優先買升級）大概幾年�
     console.log(`  ${label.padEnd(10)} 平均第 ${avg} 年拿冠軍`
       + `（中位數第 ${years[Math.floor(years.length / 2)]} 年，${never}/${N} 局 ${maxYears} 年內沒拿到）`);
   }
-  console.log('  ※ 目標：普通約第 13 年、地獄約第 16 年（見 game.js 的 OPPONENT 註解）');
+  console.log('  ※ 目標：普通約第 19 年、地獄約第 21 年（見 game.js 的 OPPONENT 註解）');
+}
+
+head('春季甲子園漏斗：三年級剛退隊、用弱化過的名單去拚秋季縣冠軍，會不會比夏天難太多');
+{
+  // 跟上面「多少年拿冠軍」同一套「認真玩」邏輯，但這次不是抽中冠軍就停，
+  // 是固定跑 N 年，統計秋季縣冠軍／秋季地區資格／春甲入場／春甲冠軍
+  // 分別發生了幾次——秋季縣大賽是三年級退隊後、用當年最弱的名單去打的，
+  // 如果這個漏斗掉太多，就是「春甲特別難」的證據。
+  const pick2 = (a) => a[Math.floor(Math.random() * a.length)];
+  const menus2 = ['batting', 'power', 'fielding', 'throwing', 'running', 'pitching', 'breaking', 'physical'];
+  const priority2 = ['academy', 'facility', 'dorm', 'clinic', 'network', 'reputation'];
+
+  function simSenbatsuFunnel(maxYears, prefectureId) {
+    const g = ST.createGame({
+      managerName: '春甲測試', schoolName: '春甲高校', prefectureId, numYears: maxYears,
+    });
+    let guard = 0;
+    let trainCounter = 0;
+    while (g.cursor.year <= maxYears && guard < 30000) {
+      guard += 1;
+      if (g.pendingDraft?.length) { RG.choosePerk(g, pick2(g.pendingDraft)); continue; }
+      if (g.pendingTransfer) { RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet'); continue; }
+      if (g.pendingAlumniVisit) { RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing'); continue; }
+      if (g.pendingWildVisit) { RG.resolveWildVisit(g); continue; }
+      if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
+      if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
+      if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick2(g.tacticChoices); continue; }
+      const affordable2 = RG.UPGRADES.filter((u) => (g.legacyPoints || 0) >= RG.upgradeCost(g, u.id));
+      if (affordable2.length) {
+        const byPriority2 = priority2.map((id) => affordable2.find((u) => u.id === id)).filter(Boolean);
+        RG.buyUpgrade(g, (byPriority2[0] || affordable2[0]).id);
+        continue;
+      }
+      const w2 = G.currentWeek(g);
+      if (w2.kind === 'training') {
+        const menuActs2 = G.availableActions(g).filter((a) => a.kind === 'menu');
+        const wantMenu2 = menus2[trainCounter % menus2.length];
+        const act2 = menuActs2.find((a) => a.id === wantMenu2) || pick2(menuActs2);
+        trainCounter += 1;
+        G.takeAction(g, act2.id);
+      } else {
+        G.takeAction(g, null);
+      }
+    }
+    let koshienChamp = 0;
+    let autumnChamp = 0;
+    let autumnAreaQualified = 0;
+    let senbatsuEntered = 0;
+    let senbatsuChamp = 0;
+    g.progress.forEach((p) => {
+      if (p.koshien?.champion) koshienChamp += 1;
+      if (p.autumn?.champion) autumnChamp += 1;
+      if (p.autumnArea?.qualified) autumnAreaQualified += 1;
+      if (p.senbatsu) senbatsuEntered += 1;
+      if (p.senbatsu?.champion) senbatsuChamp += 1;
+    });
+    return {
+      years: g.progress.length, koshienChamp, autumnChamp, autumnAreaQualified, senbatsuEntered, senbatsuChamp,
+    };
+  }
+
+  const N2 = 20; const fixedYears = 20;
+  const totals = {
+    years: 0, koshienChamp: 0, autumnChamp: 0, autumnAreaQualified: 0, senbatsuEntered: 0, senbatsuChamp: 0,
+  };
+  for (let i = 0; i < N2; i += 1) {
+    const r = simSenbatsuFunnel(fixedYears, 'aomori');
+    Object.keys(totals).forEach((k) => { totals[k] += r[k]; });
+  }
+  const pct = (a, b) => (b ? `${((a / b) * 100).toFixed(0)}%` : '—');
+  console.log(`  ${N2} 局 × ${fixedYears} 年（普通難度），共 ${totals.years} 個年頭：`);
+  console.log(`  夏季甲子園冠軍 ${totals.koshienChamp} 次（${pct(totals.koshienChamp, totals.years)}）`);
+  console.log(`  秋季縣冠軍 ${totals.autumnChamp} 次（${pct(totals.autumnChamp, totals.years)}）　`
+    + `→ 秋季地區拿到春甲資格 ${totals.autumnAreaQualified} 次（${pct(totals.autumnAreaQualified, totals.autumnChamp)} 進了地區的裡面）`);
+  console.log(`  進春甲 ${totals.senbatsuEntered} 次（${pct(totals.senbatsuEntered, totals.years)}）　`
+    + `春甲冠軍 ${totals.senbatsuChamp} 次（${pct(totals.senbatsuChamp, totals.senbatsuEntered)} 進了春甲的裡面）`);
+  console.log('  ※ 「秋季縣冠軍」代表用三年級剛退隊、最弱的名單去打；'
+    + '這一步如果比「夏季甲子園冠軍」難很多，就是春甲特別難的證據');
 }
 
 head('學力與考試：學力越低越容易被禁賽，但保底不能把隊伍打到湊不出人');
@@ -681,6 +759,55 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
     }
   }
   console.log(`  20 局跑完，「學力其實已經追回 C 以上、卻還在停賽名單」的次數：${staleFound}（要是 0）`);
+}
+
+head('選手狀態：今天的手感要真的能讓板凳把先發擠下去，不是只有數字好看');
+{
+  const avgMult = MT.CONDITION_TIERS.reduce((n, t) => n + t.mult * t.weight, 0)
+    / MT.CONDITION_TIERS.reduce((n, t) => n + t.weight, 0);
+  console.log(`  狀態倍率的加權平均 ${avgMult.toFixed(3)}（要接近 1.0，不然整體會偏強或偏弱）`);
+
+  // 兩個能力差不多的投手（同年級同天賦，能力只有隨機浮動的差異），
+  // 讓其中一個狀態絕不好調、另一個絕好調——±20% 的狀態差要蓋得過
+  // 這種小差距，先發才會真的換成狀態好的那個
+  const p1 = P.createPlayer({ gradeYear: 3, talent: 3, position: 'P' });
+  const p2 = P.createPlayer({ gradeYear: 3, talent: 3, position: 'P' });
+  const conditions = new Map([[p1.id, 0.80], [p2.id, 1.20]]);
+  const withCond = MT.buildLineup([p1, p2], { conditions });
+  console.log(`  能力相近的兩個投手，一個狀態絕不好調、一個絕好調：`
+    + `先發變成 ${withCond.starter.id === p2.id ? '狀態好的那個（對）' : '還是狀態差的那個（要重新檢查）'}`);
+
+  // 長局跑一遍，確定狀態系統不會讓比賽模擬當掉、王牌不會永遠都是同一個人
+  const pick0 = (a) => a[Math.floor(Math.random() * a.length)];
+  const g0 = ST.createGame({
+    managerName: '狀態測試', schoolName: '狀態高校', prefectureId: 'aichi', numYears: 3,
+  });
+  g0.pendingDraft = null;
+  let guard0 = 0;
+  let crash0 = false;
+  const starters0 = new Set();
+  try {
+    while (g0.cursor.year <= 3 && guard0 < 400) {
+      guard0 += 1;
+      if (g0.pendingDraft?.length) { RG.choosePerk(g0, pick0(g0.pendingDraft)); continue; }
+      if (g0.pendingTransfer) { RG.resolveTransfer(g0, 'warm'); continue; }
+      if (g0.pendingAlumniVisit) { RG.resolveAlumniVisit(g0, 'coach'); continue; }
+      if (g0.pendingWildVisit) { RG.resolveWildVisit(g0); continue; }
+      if (g0.pendingAwaken) { RG.resolveAwaken(g0, 'pass'); continue; }
+      if (g0.pendingEvent) { RG.resolveEvent(g0, 0); continue; }
+      if (g0.tacticChoices?.length && !g0.tactic) { g0.tactic = pick0(g0.tacticChoices); continue; }
+      const w0 = G.currentWeek(g0);
+      const log0 = G.takeAction(g0, w0.kind === 'training' ? 'batting' : null);
+      (log0?.results || []).forEach((r) => {
+        const top = r.box.us.pitchers[0];
+        if (top) starters0.add(top.id);
+      });
+    }
+  } catch (e) {
+    crash0 = true;
+    console.log(`  當掉了：${e.message}`);
+  }
+  console.log(`  3 年局跑完當掉：${crash0 ? '壞了' : 'OK'}　用過 ${starters0.size} 個不同的先發投手（要 > 1）`);
 }
 
 head('疲勞：打越多球越累，累了表現打折、更容易受傷，「休息」能大幅消除');
@@ -858,13 +985,13 @@ head('球隊經理與校友錄：常駐 2〜3 個、畢業去向都有效、進�
     + `職棒 ${alumniDrafted} 筆、去向抽壞掉 ${badPathCount} 筆（要是 0）`);
 }
 
-head('畢業生回訪：千奇百怪的去向都要對得上一個回訪效果，長局不能卡住');
+head('畢業生回訪：WILD_ALUMNI_JOBS 每一筆都要對得上真的存在的畢業去向，畢業去向至少要有20種');
 {
-  const missing = RG.GRADUATE_PATHS
-    .filter((p) => p.id !== 'collegeBall' && p.id !== 'shakaijin' && p.id !== 'college'
-      && p.id !== 'job' && p.id !== 'family' && !RG.WILD_ALUMNI_JOBS[p.id]);
-  console.log(`  沒對應到 WILD_ALUMNI_JOBS 的「千奇百怪」去向：${missing.map((p) => p.id).join('、') || '（無）'}`
-    + `（要是空的）`);
+  // 不是每個畢業去向都要有回訪效果——大部分只是花絮。這裡只驗證反過來的方向：
+  // WILD_ALUMNI_JOBS 裡列的每一筆，GRADUATE_PATHS 都要真的有這個 id（不能是打錯字的孤兒設定）
+  const orphaned = Object.keys(RG.WILD_ALUMNI_JOBS).filter((id) => !RG.graduatePathById(id));
+  console.log(`  畢業去向共 ${RG.GRADUATE_PATHS.length} 種（要 >= 20）`);
+  console.log(`  WILD_ALUMNI_JOBS 對應不到畢業去向的孤兒設定：${orphaned.join('、') || '（無）'}（要是空的）`);
 
   const pick9 = (a) => a[Math.floor(Math.random() * a.length)];
   let wildVisitCount = 0;

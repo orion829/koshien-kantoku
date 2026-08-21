@@ -55,9 +55,12 @@ export const POSITIONS = [
   { id: '2B', name: '二壘手', short: '二', order: 4 },
   { id: '3B', name: '三壘手', short: '三', order: 5 },
   { id: 'SS', name: '游擊手', short: '游', order: 6 },
-  { id: 'LF', name: '左外野手', short: '左', order: 7 },
-  { id: 'CF', name: '中外野手', short: '中', order: 8 },
-  { id: 'RF', name: '右外野手', short: '右', order: 9 },
+  // 外野手在畫面上不特別分左中右——高中棒球本來就沒分得那麼細，
+  // 內部還是有 LF/CF/RF 三個獨立位置（守備適性、對戰計算都還在用），
+  // 只是顯示的縮寫統一成「外」
+  { id: 'LF', name: '外野手', short: '外', order: 7 },
+  { id: 'CF', name: '外野手', short: '外', order: 8 },
+  { id: 'RF', name: '外野手', short: '外', order: 9 },
 ];
 
 export const positionById = (id) => POSITIONS.find((p) => p.id === id);

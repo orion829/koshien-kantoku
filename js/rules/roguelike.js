@@ -1412,6 +1412,68 @@ export const GRADUATE_PATHS = [
     id: 'hairdresser', label: '開了間理髮店，手藝意外地好',
     weight: () => 1,
   },
+  // 再加一批，讓「千奇百怪」名符其實——大部分是純花絮，沒有回訪效果，
+  // 只有 coach、commentator 特別安排了 WILD_ALUMNI_JOBS（跟棒球還有關係）。
+  {
+    id: 'firefighter', label: '考上消防員，體能派上用場',
+    weight: () => 1,
+  },
+  {
+    id: 'police', label: '考上警察，在地方上算是個人物',
+    weight: () => 1,
+  },
+  {
+    id: 'chef', label: '開了間拉麵店，意外地好吃',
+    weight: () => 1,
+  },
+  {
+    id: 'coach', label: '回母校附近的少棒隊當教練，把這套棒球魂傳下去',
+    weight: (p) => 1 + Math.max(0, (p?.talent || 1) - 2),
+  },
+  {
+    id: 'peTeacher', label: '考上體育老師，還是天天泡在球場旁邊',
+    weight: () => 1,
+  },
+  {
+    id: 'salesman', label: '進了保險業，同學會最怕遇到他',
+    weight: () => 1,
+  },
+  {
+    id: 'civilServant', label: '考上公務員，過上安穩生活',
+    weight: (p) => 1 + (p?.gakuryoku ?? 50) / 40,
+  },
+  {
+    id: 'freelancer', label: '接案維生，作息很隨性',
+    weight: () => 1,
+  },
+  {
+    id: 'esports', label: '轉戰電競，手速比球速還快',
+    weight: () => 1,
+  },
+  {
+    id: 'monk', label: '想通了，剃度出家去了',
+    weight: () => 0.6,
+  },
+  {
+    id: 'commentator', label: '在電視台當球評，講起比賽頭頭是道',
+    weight: (p) => 1 + Math.max(0, (p?.talent || 1) - 3),
+  },
+  {
+    id: 'doctor', label: '考上醫學系，現在是醫生了',
+    weight: (p) => 0.5 + (p?.gakuryoku ?? 50) / 25,
+  },
+  {
+    id: 'lawyer', label: '考上法律系，當了律師',
+    weight: (p) => 0.5 + (p?.gakuryoku ?? 50) / 30,
+  },
+  {
+    id: 'traveler', label: '拿著這幾年打工存的錢，環遊世界去了',
+    weight: () => 1,
+  },
+  {
+    id: 'fighter', label: '轉練格鬥，聽說戰績還不錯',
+    weight: (p) => 1 + Math.max(0, (p?.talent || 1) - 2),
+  },
 ];
 
 export const graduatePathById = (id) => GRADUATE_PATHS.find((g) => g.id === id);
@@ -1483,6 +1545,23 @@ export const WILD_ALUMNI_JOBS = {
     apply(game) {
       active(game.team.players).forEach((p) => { p.fatigue = Math.max(0, (p.fatigue || 0) - 15); });
       return '免費幫全隊剪頭髮，剪完神清氣爽，大家都比較不累了。';
+    },
+  },
+  coach: {
+    name: '少棒教練',
+    apply(game, rng = Math.random) {
+      const picked = someone(game, 4, rng);
+      const stats = [...BATTER_STATS, ...PITCHER_STATS];
+      const stat = stats[Math.floor(rng() * stats.length)];
+      const n = bump(picked, stat.id, 3);
+      return `回來指導了一個下午，把當年那套棒球魂傳下去，${n} 個人的${stat.name}進步了。`;
+    },
+  },
+  commentator: {
+    name: '球評',
+    apply(game) {
+      game.extraFame = (game.extraFame || 0) + 5;
+      return '在轉播上特別提到母校，講得頭頭是道，注目度 +5。';
     },
   },
 };
@@ -1673,6 +1752,54 @@ export const TRAINING_WONDER_EVENTS = [
         note: `不知道哪裡傳出關於球隊的謠言，鬧了一陣子小風波，注目度 −${loss}。`,
         negative: true,
       };
+    },
+  },
+  {
+    id: 'clubExchange',
+    name: '校際交流賽',
+    available: () => true,
+    apply: (game, rng) => {
+      const picked = someone(game, 5, rng);
+      const n = bump(picked, 'meet', 2) + bump(picked, 'field', 2);
+      return { note: `跟鄰校社團辦了場交流賽，難得跟不同風格的對手練習，${n} 人次悄悄變好了。`, negative: false };
+    },
+  },
+  {
+    id: 'coldSeason',
+    name: '集體感冒',
+    available: () => true,
+    apply: (game, rng) => {
+      const picked = someone(game, 5, rng);
+      picked.forEach((p) => { p.fatigue = clamp((p.fatigue || 0) + 10, 0, 100); });
+      return { note: `換季的時候隊上一口氣有${picked.length}個人感冒，練習有點沒力氣。`, negative: true };
+    },
+  },
+  {
+    id: 'newGear',
+    name: '廠商來試裝備',
+    available: () => true,
+    apply: (game, rng) => {
+      const picked = someone(game, 4, rng);
+      const n = bump(picked, 'catch', 2) + bump(picked, 'arm', 2);
+      return { note: `體育用品廠商來讓大家試新手套，${n} 人次手感意外變好了。`, negative: false };
+    },
+  },
+  {
+    id: 'emptyStall',
+    name: '擺攤生意冷清',
+    available: () => true,
+    apply: (game) => {
+      game.extraFame = Math.max(0, (game.extraFame || 0) - 3);
+      return { note: '園遊會擺的攤沒什麼人來，大家有點小尷尬，注目度 −3。', negative: true };
+    },
+  },
+  {
+    id: 'obVisit',
+    name: '熱心校友來加油',
+    available: () => true,
+    apply: (game) => {
+      cheerUp(game, 1);
+      return { note: '一個不知道哪一屆的學長突然出現在球場邊加油，大家精神都來了。', negative: false };
     },
   },
 ];

@@ -31,11 +31,14 @@ export function computeLineupSlots(game) {
   return { slots, starterId: starter.id, bullpenIds: bullpen.map((p) => p.id) };
 }
 
-/** computeLineupSlots 的結果換成一小段文字，給選手名單、主頁選手卡共用 */
+/**
+ * computeLineupSlots 的結果換成一小段文字，給選手名單、主頁選手卡共用。
+ * 高中棒球投手分工本來就不明顯，牛棚裡的其他投手不特別標——
+ * 只標王牌先發，其他能投的人不用額外貼標籤。
+ */
 export function lineupTag(p, lineupInfo) {
   if (!lineupInfo) return '';
   if (lineupInfo.starterId === p.id) return '⚾ 王牌先發';
-  if (lineupInfo.bullpenIds.includes(p.id)) return '牛棚';
   const slot = lineupInfo.slots.get(p.id);
   if (slot) return `先發第 ${slot.battingOrder} 棒・${positionById(slot.position)?.short || ''}`;
   return '';

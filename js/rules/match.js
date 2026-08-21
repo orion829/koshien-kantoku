@@ -55,25 +55,63 @@ function teamRating(players) {
   return Math.round(b * 0.6 + (ace ? overall(ace) : 40) * 0.4);
 }
 
+// ── 選手狀態 ────────────────────────────────────────────
+//
+// 每一場比賽，每個人都會有「今天的狀態」——不是疲勞、不是受傷，
+// 單純是手感好壞。這是先發野手也會被冷板凳球員換掉的理由：
+// 狀態夠差的先發，狀態夠好的替補可能就會把他的位置搶走。
+// 跟球隊整體的「今天的氣勢」（form）是分開算的，兩個都有效。
+
+export const CONDITION_TIERS = [
+  { id: 'great', label: '絕好調', mult: 1.20, weight: 8 },
+  { id: 'good', label: '好調', mult: 1.08, weight: 22 },
+  { id: 'normal', label: '普通', mult: 1.00, weight: 40 },
+  { id: 'bad', label: '不好調', mult: 0.92, weight: 22 },
+  { id: 'terrible', label: '絕不好調', mult: 0.80, weight: 8 },
+];
+
+function rollConditionTier(rng) {
+  const total = CONDITION_TIERS.reduce((n, t) => n + t.weight, 0);
+  let r = rng() * total;
+  for (const t of CONDITION_TIERS) {
+    r -= t.weight;
+    if (r <= 0) return t;
+  }
+  return CONDITION_TIERS[CONDITION_TIERS.length - 1];
+}
+
+/**
+ * 幫一批球員各自抽一次「今天的狀態」，回傳 Map<球員id, 能力倍率>。
+ * 每一場比賽都要重抽一次——這是「今天」的狀態，不是長期的。
+ */
+export function rollConditions(players, rng = Math.random) {
+  return new Map(players.map((p) => [p.id, rollConditionTier(rng).mult]));
+}
+
 // ── 上場陣容 ────────────────────────────────────────────
 
 /**
  * 從名單排出先發九人和投手。
- * 守備位置盡量放適性好的人；打線照打擊能力排。
+ * 守備位置盡量放適性好的人、加上今天的狀態；打線照打擊能力排。
  *
  * customOrder（玩家自己排的先發，可省略）：長度 8 的陣列，
  * [{ playerId, position }, ...]，是打擊順序 1〜8 棒。缺人（受傷、停賽、
  * 被別的位置佔走）的位置會自動補人，補的人一樣排在原本那個棒次。
+ *
+ * conditions（可省略）：rollConditions() 算出來的今天狀態表。玩家自己
+ * 排的先發不會被狀態覆蓋——這是玩家的決定，系統只在「自動排」時參考狀態。
  */
 export function buildLineup(players, {
-  pitcherId = null, cannotPitch = [], customOrder = null,
+  pitcherId = null, cannotPitch = [], customOrder = null, conditions = null,
 } = {}) {
   const pool = players.filter((p) => !p.injury || p.injury.weeks <= 0);
   // 投球數超過一週上限的人還是要上場打擊，只是不能投球
   const blocked = new Set(cannotPitch);
+  const condOf = (p) => conditions?.get(p.id) ?? 1;
   // 排先發投手要把疲勞算進去——不然王牌會一直被排上場，
-  // 疲勞怎麼設都沒用，因為系統從來不會真的換人
-  const effectivePitching = (p) => overall(p) * fatiguePenalty(p.fatigue);
+  // 疲勞怎麼設都沒用，因為系統從來不會真的換人。今天的狀態也算進去，
+  // 狀態夠差的王牌，二號投手今天狀態好的話真的會把他換下來
+  const effectivePitching = (p) => overall(p) * fatiguePenalty(p.fatigue) * condOf(p);
   const pitchers = pool
     .filter((p) => isPitcher(p) && !blocked.has(p.id))
     .sort((a, b) => effectivePitching(b) - effectivePitching(a));
@@ -109,15 +147,17 @@ export function buildLineup(players, {
     if (!pos) break;
     const best = rest
       .filter((p) => !takenPlayers.has(p.id))
-      .sort((a, b) => aptScore(b, pos) - aptScore(a, pos))[0];
+      .sort((a, b) => aptScore(b, pos) * condOf(b) - aptScore(a, pos) * condOf(a))[0];
     if (!best) continue;
     takenPlayers.add(best.id);
     bySlot[i] = { player: best, position: pos };
   }
 
   const filled = bySlot.filter(Boolean);
-  // 沒有自訂打線的話，維持原本「打擊好的排前面」；有自訂就照玩家排的順序
-  const fielders = customOrder ? filled : filled.sort((a, b) => batRating(b.player) - batRating(a.player));
+  // 沒有自訂打線的話，維持原本「打擊好的排前面」（今天狀態也算進去）；
+  // 有自訂就照玩家排的順序
+  const fielders = customOrder ? filled
+    : filled.sort((a, b) => batRating(b.player) * condOf(b.player) - batRating(a.player) * condOf(a.player));
 
   // 打線：投手放第九棒（甲子園沒有指定打擊）
   const order = fielders.concat([{ player: starter, position: 'P' }]);
@@ -186,12 +226,12 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   // om = 進攻方的加成、dm = 防守方的加成（傳統 ＋ 作戰 ＋ 對手特色）
   const om = ctx.off;
   const dm = ctx.def;
-  const stuff = pitcherStuff(pitcher, pitches, dm.staminaMult) + ctx.pitchForm + dm.stuff;
+  const stuff = pitcherStuff(pitcher, pitches, dm.staminaMult) * ctx.pitchCondition + ctx.pitchForm + dm.stuff;
   const b = batter.abilities;
 
-  // 關鍵時刻的加成 ＋ 今天的狀態 ＋ 加成表
-  let meet = b.meet + ctx.batForm + om.meet;
-  let power = b.power + ctx.batForm + om.power;
+  // 關鍵時刻的加成 ＋ 今天的狀態（球隊整體 ctx.batForm ＋ 個人手感 ctx.batCondition）＋ 加成表
+  let meet = b.meet * ctx.batCondition + ctx.batForm + om.meet;
+  let power = b.power * ctx.batCondition + ctx.batForm + om.power;
   if (ctx.trailing) { meet += om.comeback; power += om.comeback; }
   if (ctx.inning <= 2) { meet += om.early; power += om.early; }
   if (ctx.scoring && has(batter, 'clutch')) { meet += 8; power += 8; }
@@ -278,6 +318,8 @@ export function playMatch(home, away, rng = Math.random, { maxInnings = 12, merc
     arm: armRating(t.order),
     errors: 0,
     mods: t.mods || baseMods(),
+    // 每個人今天自己的手感——跟下面隊伍整體的 form 是分開的兩層
+    conditions: t.conditions || new Map(),
     bat: new Map(t.order.map(({ player, position }) => [player.id, newBatLine(player, position)])),
     pit: new Map([[t.starter.id, newPitLine(t.starter)]]),
     runs: [],
@@ -357,6 +399,9 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
       defArm: def.arm,
       inning,
       trailing: off.total < def.total,
+      // 每個人今天自己的手感，跟上面隊伍整體的 form 分開算
+      batCondition: off.conditions.get(batter.id) ?? 1,
+      pitchCondition: def.conditions.get(def.pitcher.id) ?? 1,
     };
     const r = atBat(batter, def.pitcher, pit.pitches, def.defence, ctx, rng);
     pit.pitches += r.pitches;
