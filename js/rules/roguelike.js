@@ -1,6 +1,6 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成十一種：
+// 這個檔案放「每一局都不一樣」的東西。分成十三種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
 //   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
@@ -16,13 +16,18 @@
 //  10. 球隊經理 一年招一個，常駐 2〜3 個，特殊能力有好有壞，三年後畢業
 //  11. 畢業去向 沒被職棒選走的畢業生（和畢業的經理）抽一個未來的路，
 //             全部記進 game.alumni，給校友錄畫面回顧用
+//  12. 畢業生回訪 走上千奇百怪那條路的校友，偶爾會回來串門子，
+//             帶一點跟職業有關的小驚喜，純加分沒有風險
+//  13. 奇妙事件 比賽週、練習週都偶爾會發生的小插曲，系統直接決定，
+//             有正面也有負面：比賽週的跟注目度有關，練習週的
+//             加了園遊會、運動會、戀愛、惡搞這些校園生活花絮
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
 
 import { createPlayer, boostPotential } from './player.js';
 import { addRecruits, active } from './roster.js';
-import { injure } from './injury.js';
+import { injure, isInjured } from './injury.js';
 import { randomManagerName } from '../data/names.js';
 import {
   MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, skillsFor, skillById, grade,
@@ -1381,6 +1386,32 @@ export const GRADUATE_PATHS = [
     id: 'family', label: '回家繼承家業',
     weight: () => 1,
   },
+  // 以下是故意安排得比較誇張的去向——「千奇百怪」本身就是賣點，
+  // 每一個都掛了一個對應的 WILD_ALUMNI_JOBS，之後偶爾會回來探班。
+  {
+    id: 'youtuber', label: '當了 YouTuber，靠當年打球的故事開頻道',
+    weight: () => 1,
+  },
+  {
+    id: 'vtuber', label: '轉行當 VTuber，沒人知道螢幕後面是他',
+    weight: () => 1,
+  },
+  {
+    id: 'idol', label: '出道當偶像，完全看不出來以前是打棒球的',
+    weight: () => 1,
+  },
+  {
+    id: 'underworld', label: '聽說混進了道上，好像混得還不錯（不要問細節）',
+    weight: () => 1,
+  },
+  {
+    id: 'nurse', label: '考上護理，現在在醫院上班',
+    weight: () => 1,
+  },
+  {
+    id: 'hairdresser', label: '開了間理髮店，手藝意外地好',
+    weight: () => 1,
+  },
 ];
 
 export const graduatePathById = (id) => GRADUATE_PATHS.find((g) => g.id === id);
@@ -1395,6 +1426,271 @@ export function rollGraduatePath(player, rng = Math.random) {
     if (r <= 0) return g.id;
   }
   return weighted[weighted.length - 1].g.id;
+}
+
+// ── 12. 畢業生回訪（千奇百怪的畢業去向）────────────────
+//
+// 跟第 7 節的「職棒學長探班」是同一種概念，但對象是走上 YouTuber、
+// VTuber、偶像……這些路的畢業生。效果比職棒學長小一點、也搞笑一點，
+// 沒有選擇，直接收下就好——重點是花絮的樂趣，不是又一個要精算的決策。
+
+export const WILD_ALUMNI_JOBS = {
+  youtuber: {
+    name: 'YouTuber',
+    apply(game) {
+      game.extraFame = (game.extraFame || 0) + 4;
+      return '回來拍了一支「特訓大公開」的影片，意外爆紅，注目度 +4。';
+    },
+  },
+  vtuber: {
+    name: 'VTuber',
+    apply(game) {
+      game.extraFame = (game.extraFame || 0) + 4;
+      return '用 VTuber 的身份直播幫忙宣傳，留言區洗版式應援，注目度 +4。';
+    },
+  },
+  idol: {
+    name: '偶像',
+    apply(game) {
+      game.morale.weeksSinceMatch = Math.max(0, game.morale.weeksSinceMatch - 2);
+      return '回來幫大家加油打氣，士氣好像充飽電了一樣。';
+    },
+  },
+  underworld: {
+    name: '道上兄弟',
+    apply(game) {
+      game.legacyPoints = (game.legacyPoints || 0) + 2;
+      return '塞了一筆來路不明的「贊助費」，還是別追問細節比較好——傳承點數 +2。';
+    },
+  },
+  nurse: {
+    name: '護士',
+    apply(game) {
+      const hurt = active(game.team.players).filter((p) => isInjured(p));
+      if (hurt.length) {
+        hurt.forEach((p) => {
+          p.injury.weeks = Math.max(0, p.injury.weeks - 2);
+          if (p.injury.weeks <= 0) p.injury = null;
+        });
+        return `幫養傷中的人看了診，${hurt.length} 個人的傷好得比較快了。`;
+      }
+      active(game.team.players).forEach((p) => { p.fatigue = Math.max(0, (p.fatigue || 0) - 15); });
+      return '幫全隊做了一次健康檢查，大家都比較不累了。';
+    },
+  },
+  hairdresser: {
+    name: '理髮師',
+    apply(game) {
+      active(game.team.players).forEach((p) => { p.fatigue = Math.max(0, (p.fatigue || 0) - 15); });
+      return '免費幫全隊剪頭髮，剪完神清氣爽，大家都比較不累了。';
+    },
+  },
+};
+
+/** 每個練習週跳出畢業生回訪事件的機率（前提是校友錄裡至少有一個千奇百怪的去向） */
+export const WILD_VISIT_CHANCE = 0.05;
+
+/** 這一週要不要跳畢業生回訪事件。回傳被抽到的那個校友，或 null */
+export function rollWildVisit(game, rng = Math.random) {
+  const pool = (game.alumni || []).filter((a) => WILD_ALUMNI_JOBS[a.path]);
+  if (!pool.length) return null;
+  if (rng() >= WILD_VISIT_CHANCE) return null;
+  return pickOne(pool, rng);
+}
+
+/** 收下這次回訪帶來的小驚喜 */
+export function resolveWildVisit(game) {
+  const a = game.pendingWildVisit;
+  if (!a) return null;
+  game.pendingWildVisit = null;
+  const job = WILD_ALUMNI_JOBS[a.path];
+  const note = job.apply(game);
+  return {
+    week: game.cursor.abs,
+    kind: 'wildVisit',
+    event: `畢業的${job.name}回來串門子`,
+    wildVisitResult: { name: a.name, job: job.name, note },
+  };
+}
+
+// ── 13. 奇妙事件（比賽當天偶爾發生的小插曲）───────────────
+//
+// 跟第 2 節的「突發事件」不一樣：那個是練習週、玩家要選；這個是比賽週，
+// 系統直接決定，只影響那一週的比賽，跟對手特色一樣打完就沒了，
+// 不用玩家做任何選擇。有正面也有負面，其中「被知名 YouTuber 盯上」
+// 需要注目度夠高才會出現——名氣越大，招來的關注不見得都是好事。
+
+/** 每個比賽週跳出奇妙事件的機率（前提是至少有一個事件的條件成立） */
+export const WONDER_EVENT_CHANCE = 0.15;
+
+export const WONDER_EVENTS = [
+  {
+    id: 'hihi',
+    name: '被知名棒球 YouTuber 盯上了',
+    negative: true,
+    desc: '一位 J 開頭、超有名的棒球 YouTuber 也在關注這場比賽，鏡頭一多大家都不自在，被「hihi」了一下。',
+    available: (game, fame) => fame >= 60,
+    apply: (m) => {
+      m.meet -= 6; m.power -= 6; m.defence -= 6;
+      m.control -= 6; m.stuff -= 6; m.speed -= 4;
+    },
+  },
+  {
+    id: 'packedStands',
+    name: '看台坐滿了',
+    negative: false,
+    desc: '名氣夠大，這場比賽看台坐得滿滿的，加油聲勢驚人。',
+    available: (game, fame) => fame >= 25,
+    apply: (m) => { m.meet += 5; m.power += 5; m.control += 3; },
+  },
+  {
+    id: 'localNews',
+    name: '地方新聞來採訪',
+    negative: false,
+    desc: '地方電視台來拍新聞，難得上鏡，大家都打起精神來。',
+    available: () => true,
+    apply: (m) => { m.meet += 4; m.power += 3; m.defence += 3; },
+  },
+  {
+    id: 'rainyField',
+    name: '賽前下了場雨',
+    negative: true,
+    desc: '比賽前下了場雨，場地有點泥濘，球感、腳步都受影響。',
+    available: () => true,
+    apply: (m) => { m.defence -= 6; m.speed -= 5; m.control -= 4; },
+  },
+  {
+    id: 'goodBento',
+    name: '中午的便當特別好吃',
+    negative: false,
+    desc: '不知道為什麼，今天的便當特別好吃，大家心情都很好。',
+    available: () => true,
+    apply: (m) => { m.meet += 2; m.power += 2; },
+  },
+];
+
+export const wonderEventById = (id) => WONDER_EVENTS.find((e) => e.id === id);
+
+/**
+ * 這一週的比賽要不要跳奇妙事件。fame 要先算好傳進來（scouting.js 的
+ * fameOf 反過來也要用到這個檔案的 modifiers，直接 import 會變成循環依賴）。
+ */
+export function rollWonderEvent(game, fame, rng = Math.random) {
+  const pool = WONDER_EVENTS.filter((e) => e.available(game, fame));
+  if (!pool.length || rng() >= WONDER_EVENT_CHANCE) return null;
+  return pickOne(pool, rng);
+}
+
+// ── 13b. 奇妙事件（練習週版：園遊會、運動會、戀愛、惡搞）─────
+//
+// 跟上面比賽週的奇妙事件是同一個概念，只是換成練習週會遇到的花絮——
+// 不用玩家選，練完當週的練習之後直接跳出結果，跟「突發事件」（兩個
+// 選項要玩家選）是不同的東西，這個純粹是錦上添花的驚喜。
+// 「學姐回來開演唱會」要校友錄裡真的有一個當偶像的經理才會出現，
+// 呼應第 12 節畢業生回訪——她已經畢業了，這是難得的返校演出。
+
+export const TRAINING_WONDER_EVENT_CHANCE = 0.1;
+
+export const TRAINING_WONDER_EVENTS = [
+  {
+    id: 'idolConcert',
+    name: '學姐回來開迷你演唱會',
+    available: (game) => (game.alumni || []).some((a) => a.role === 'manager' && a.path === 'idol'),
+    apply: (game) => {
+      game.extraFame = (game.extraFame || 0) + 10;
+      cheerUp(game, 3);
+      return {
+        note: '園遊會那天，當偶像的學姐回母校開了一場迷你演唱會，全校擠得水洩不通，'
+          + '注目度 +10，士氣也跟著沸騰起來。',
+        negative: false,
+      };
+    },
+  },
+  {
+    id: 'sportsDay',
+    name: '運動會',
+    available: () => true,
+    apply: (game, rng) => {
+      const picked = someone(game, 6, rng);
+      const n = bump(picked, 'speed', 3) + bump(picked, 'power', 2);
+      return {
+        note: `運動會辦得很熱血，大隊接力、拔河都練得很兇，${n} 人次的體能悄悄變好了。`,
+        negative: false,
+      };
+    },
+  },
+  {
+    id: 'schoolFairStall',
+    name: '園遊會擺攤',
+    available: () => true,
+    apply: (game) => {
+      game.extraFame = (game.extraFame || 0) + 5;
+      return { note: '棒球隊在園遊會擺了攤，意外大成功，還上了校內新聞，注目度 +5。', negative: false };
+    },
+  },
+  {
+    id: 'confession',
+    name: '園遊會告白事件',
+    available: (game) => canPlay(game).length > 0,
+    apply: (game, rng) => {
+      const p = pickOne(canPlay(game), rng);
+      if (rng() < 0.5) {
+        const stats = p.position === 'P' ? PITCHER_STATS : BATTER_STATS;
+        const stat = stats[Math.floor(rng() * stats.length)];
+        bump([p], stat.id, 3);
+        return {
+          note: `${p.name} 在園遊會被告白，還答應了。戀愛的力量讓他這幾天狀態特別好，${stat.name}進步了。`,
+          negative: false,
+        };
+      }
+      p.fatigue = clamp((p.fatigue || 0) + 8, 0, 100);
+      return {
+        note: `${p.name} 在園遊會告白失敗了，這幾天有點心不在焉，練習有點恍神。`,
+        negative: true,
+      };
+    },
+  },
+  {
+    id: 'prank',
+    name: '惡作劇',
+    available: () => true,
+    apply: (game) => {
+      cheerUp(game, 1);
+      return { note: '有人在教練室門口設了整人陷阱，全隊笑到不行，氣氛意外變好了。', negative: false };
+    },
+  },
+  {
+    id: 'scandal',
+    name: '爆出小醜聞',
+    // 太沒沒無聞的學校不會有人八卦——要先小有名氣（注目度 >= 15）才會被盯上，
+    // 跟「看台坐滿」（25）、「被YouTuber盯上」（60）是同一條「越紅越麻煩」的路線，
+    // 只是這是最先開始出現的那一階。
+    available: (game, fame) => fame >= 15,
+    apply: (game, rng) => {
+      const loss = 4 + Math.floor(rng() * 5);
+      game.extraFame = Math.max(0, (game.extraFame || 0) - loss);
+      return {
+        note: `不知道哪裡傳出關於球隊的謠言，鬧了一陣子小風波，注目度 −${loss}。`,
+        negative: true,
+      };
+    },
+  },
+];
+
+export const trainingWonderEventById = (id) => TRAINING_WONDER_EVENTS.find((e) => e.id === id);
+
+/**
+ * 這一週的練習要不要跳奇妙事件。跟比賽週那個獨立，兩邊互不影響。
+ * fame 要先算好傳進來，理由跟 rollWonderEvent 一樣（避免循環 import）。
+ */
+export function rollTrainingWonderEvent(game, fame, rng = Math.random) {
+  const pool = TRAINING_WONDER_EVENTS.filter((e) => e.available(game, fame));
+  if (!pool.length || rng() >= TRAINING_WONDER_EVENT_CHANCE) return null;
+  const ev = pickOne(pool, rng);
+  const { note, negative } = ev.apply(game, rng);
+  return {
+    id: ev.id, name: ev.name, desc: note, negative: !!negative,
+  };
 }
 
 export { clamp };

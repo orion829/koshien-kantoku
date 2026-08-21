@@ -340,6 +340,7 @@ head('一整局（前3年切片）：三選一 6 次、轉學生 3 次、事件�
   let awakenBet = 0;
   let awakenWin = 0;
   let alumniVisits = 0;
+  let wildVisits = 0;
   const strengths = [];
 
   for (let n = 0; n < 40; n += 1) {
@@ -363,6 +364,7 @@ head('一整局（前3年切片）：三選一 6 次、轉學生 3 次、事件�
           RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing');
           continue;
         }
+        if (g.pendingWildVisit) { wildVisits += 1; RG.resolveWildVisit(g); continue; }
         if (g.pendingAwaken) {
           awakenSeenN += 1;
           // 模擬一個「大多會賭一把」的玩家，這樣才能同時驗證賭贏跟賭輸的分支
@@ -395,6 +397,7 @@ head('一整局（前3年切片）：三選一 6 次、轉學生 3 次、事件�
     + `賭下去 ${awakenBet}/${awakenSeenN}　賭贏 ${awakenWin}/${awakenBet}`
     + `（機率設計上大約 0.4〜0.6）`);
   console.log(`  每局學長探班 ${(alumniVisits / 40).toFixed(2)} 次（3 年局本來就少，正常）`);
+  console.log(`  每局畢業生回訪 ${(wildVisits / 40).toFixed(2)} 次（校友要先畢業才會有，3 年局本來就少）`);
   console.log(`  亂玩的最終戰力 中位數 ${strengths[Math.floor(strengths.length / 2)]}`
     + `（認真玩要明顯更高）`);
 }
@@ -431,6 +434,7 @@ head('長局穩定性：跑 15 年不能當掉、不能卡住（傳統 14 張一
           RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing');
           continue;
         }
+        if (g.pendingWildVisit) { RG.resolveWildVisit(g); continue; }
         if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
         if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
         if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
@@ -520,6 +524,7 @@ head('多少年拿冠軍：認真玩（有練、優先買升級）大概幾年�
         RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing');
         continue;
       }
+      if (g.pendingWildVisit) { RG.resolveWildVisit(g); continue; }
       if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
       if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
       if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
@@ -600,6 +605,7 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
     if (g2.pendingDraft?.length) { RG.choosePerk(g2, g2.pendingDraft[0]); continue; }
     if (g2.pendingTransfer) { RG.resolveTransfer(g2, 'warm'); continue; }
     if (g2.pendingAlumniVisit) { RG.resolveAlumniVisit(g2, 'coach'); continue; }
+    if (g2.pendingWildVisit) { RG.resolveWildVisit(g2); continue; }
     if (g2.pendingAwaken) { RG.resolveAwaken(g2, 'pass'); continue; }
     if (g2.pendingEvent) { RG.resolveEvent(g2, 0); continue; }
     if (g2.tacticChoices?.length && !g2.tactic) { g2.tactic = g2.tacticChoices[0]; continue; }
@@ -632,6 +638,7 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
       if (g5.pendingDraft?.length) { RG.choosePerk(g5, pick5(g5.pendingDraft)); continue; }
       if (g5.pendingTransfer) { RG.resolveTransfer(g5, 'warm'); continue; }
       if (g5.pendingAlumniVisit) { RG.resolveAlumniVisit(g5, 'coach'); continue; }
+      if (g5.pendingWildVisit) { RG.resolveWildVisit(g5); continue; }
       if (g5.pendingAwaken) { RG.resolveAwaken(g5, 'pass'); continue; }
       if (g5.pendingEvent) { RG.resolveEvent(g5, 0); continue; }
       if (g5.tacticChoices?.length && !g5.tactic) { g5.tactic = pick5(g5.tacticChoices); continue; }
@@ -662,6 +669,7 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
       if (g6.pendingDraft?.length) { RG.choosePerk(g6, pick6(g6.pendingDraft)); continue; }
       if (g6.pendingTransfer) { RG.resolveTransfer(g6, 'warm'); continue; }
       if (g6.pendingAlumniVisit) { RG.resolveAlumniVisit(g6, 'coach'); continue; }
+      if (g6.pendingWildVisit) { RG.resolveWildVisit(g6); continue; }
       if (g6.pendingAwaken) { RG.resolveAwaken(g6, 'pass'); continue; }
       if (g6.pendingEvent) { RG.resolveEvent(g6, 0); continue; }
       if (g6.tacticChoices?.length && !g6.tactic) { g6.tactic = pick6(g6.tacticChoices); continue; }
@@ -703,6 +711,7 @@ head('疲勞：打越多球越累，累了表現打折、更容易受傷，「�
       if (g3b.pendingDraft?.length) { RG.choosePerk(g3b, pick3(g3b.pendingDraft)); continue; }
       if (g3b.pendingTransfer) { RG.resolveTransfer(g3b, 'warm'); continue; }
       if (g3b.pendingAlumniVisit) { RG.resolveAlumniVisit(g3b, 'coach'); continue; }
+      if (g3b.pendingWildVisit) { RG.resolveWildVisit(g3b); continue; }
       if (g3b.pendingAwaken) { RG.resolveAwaken(g3b, 'pass'); continue; }
       if (g3b.pendingEvent) { RG.resolveEvent(g3b, 0); continue; }
       if (g3b.tacticChoices?.length && !g3b.tactic) { g3b.tactic = pick3(g3b.tacticChoices); continue; }
@@ -730,6 +739,7 @@ head('疲勞：打越多球越累，累了表現打折、更容易受傷，「�
     if (g3c.pendingDraft?.length) { RG.choosePerk(g3c, pick3(g3c.pendingDraft)); continue; }
     if (g3c.pendingTransfer) { RG.resolveTransfer(g3c, 'warm'); continue; }
     if (g3c.pendingAlumniVisit) { RG.resolveAlumniVisit(g3c, 'coach'); continue; }
+    if (g3c.pendingWildVisit) { RG.resolveWildVisit(g3c); continue; }
     if (g3c.pendingAwaken) { RG.resolveAwaken(g3c, 'pass'); continue; }
     if (g3c.pendingEvent) { RG.resolveEvent(g3c, 0); continue; }
     if (g3c.tacticChoices?.length && !g3c.tactic) { g3c.tactic = pick3(g3c.tacticChoices); continue; }
@@ -776,6 +786,7 @@ head('職棒選秀：野手不該比投手難拿注目度，選走的人天賦�
       if (g7.pendingDraft?.length) { RG.choosePerk(g7, pick7(g7.pendingDraft)); continue; }
       if (g7.pendingTransfer) { RG.resolveTransfer(g7, 'warm'); continue; }
       if (g7.pendingAlumniVisit) { RG.resolveAlumniVisit(g7, 'coach'); continue; }
+      if (g7.pendingWildVisit) { RG.resolveWildVisit(g7); continue; }
       if (g7.pendingAwaken) { RG.resolveAwaken(g7, 'pass'); continue; }
       if (g7.pendingEvent) { RG.resolveEvent(g7, 0); continue; }
       if (g7.tacticChoices?.length && !g7.tactic) { g7.tactic = pick7(g7.tacticChoices); continue; }
@@ -824,6 +835,7 @@ head('球隊經理與校友錄：常駐 2〜3 個、畢業去向都有效、進�
       if (g8.pendingDraft?.length) { RG.choosePerk(g8, pick8(g8.pendingDraft)); continue; }
       if (g8.pendingTransfer) { RG.resolveTransfer(g8, 'warm'); continue; }
       if (g8.pendingAlumniVisit) { RG.resolveAlumniVisit(g8, 'coach'); continue; }
+      if (g8.pendingWildVisit) { RG.resolveWildVisit(g8); continue; }
       if (g8.pendingAwaken) { RG.resolveAwaken(g8, 'pass'); continue; }
       if (g8.pendingEvent) { RG.resolveEvent(g8, 0); continue; }
       if (g8.tacticChoices?.length && !g8.tactic) { g8.tactic = pick8(g8.tacticChoices); continue; }
@@ -844,6 +856,129 @@ head('球隊經理與校友錄：常駐 2〜3 個、畢業去向都有效、進�
   console.log(`  進職棒的畢業生沒寫上球隊名字：${draftedNoTeam} 筆（要是 0）`);
   console.log(`  校友錄總共 ${alumniTotal} 筆（球員+經理），其中經理 ${alumniManagers} 筆、`
     + `職棒 ${alumniDrafted} 筆、去向抽壞掉 ${badPathCount} 筆（要是 0）`);
+}
+
+head('畢業生回訪：千奇百怪的去向都要對得上一個回訪效果，長局不能卡住');
+{
+  const missing = RG.GRADUATE_PATHS
+    .filter((p) => p.id !== 'collegeBall' && p.id !== 'shakaijin' && p.id !== 'college'
+      && p.id !== 'job' && p.id !== 'family' && !RG.WILD_ALUMNI_JOBS[p.id]);
+  console.log(`  沒對應到 WILD_ALUMNI_JOBS 的「千奇百怪」去向：${missing.map((p) => p.id).join('、') || '（無）'}`
+    + `（要是空的）`);
+
+  const pick9 = (a) => a[Math.floor(Math.random() * a.length)];
+  let wildVisitCount = 0;
+  let crash9 = 0;
+  for (let trial = 0; trial < 10; trial += 1) {
+    const g9 = ST.createGame({
+      managerName: '回訪測試', schoolName: '回訪高校', prefectureId: 'aichi', numYears: 15,
+    });
+    g9.pendingDraft = null;
+    try {
+      let guard9 = 0;
+      while (g9.cursor.year <= 15 && guard9 < 4000) {
+        guard9 += 1;
+        if (g9.pendingDraft?.length) { RG.choosePerk(g9, pick9(g9.pendingDraft)); continue; }
+        if (g9.pendingTransfer) { RG.resolveTransfer(g9, 'warm'); continue; }
+        if (g9.pendingAlumniVisit) { RG.resolveAlumniVisit(g9, 'coach'); continue; }
+        if (g9.pendingWildVisit) { wildVisitCount += 1; RG.resolveWildVisit(g9); continue; }
+        if (g9.pendingAwaken) { RG.resolveAwaken(g9, 'pass'); continue; }
+        if (g9.pendingEvent) { RG.resolveEvent(g9, 0); continue; }
+        if (g9.tacticChoices?.length && !g9.tactic) { g9.tactic = pick9(g9.tacticChoices); continue; }
+        const acts9 = G.availableActions(g9).filter((a) => !a.todo);
+        G.takeAction(g9, G.currentWeek(g9).kind === 'training' ? pick9(acts9).id : null);
+      }
+    } catch (e) {
+      crash9 += 1;
+      console.log(`  當掉了：${e.message}`);
+    }
+  }
+  console.log(`  10 局 × 15 年，畢業生回訪共觸發 ${wildVisitCount} 次，當掉 ${crash9} 次（要是 0）`);
+}
+
+head('奇妙事件：注目度門檻要真的擋住「被知名YouTuber盯上」，長局不能當掉');
+{
+  const hihi = RG.wonderEventById('hihi');
+  const packed = RG.wonderEventById('packedStands');
+  console.log(`  fame=0：hihi 可用=${hihi.available(null, 0)}（要 false）　`
+    + `packedStands 可用=${packed.available(null, 0)}（要 false）`);
+  console.log(`  fame=59：hihi 可用=${hihi.available(null, 59)}（要 false）`);
+  console.log(`  fame=60：hihi 可用=${hihi.available(null, 60)}（要 true）`);
+  console.log(`  fame=25：packedStands 可用=${packed.available(null, 25)}（要 true）`);
+
+  const idolConcert = RG.trainingWonderEventById('idolConcert');
+  console.log(`  沒有偶像經理校友時，idolConcert 可用=${idolConcert.available({ alumni: [] })}（要 false）　`
+    + `有的話=${idolConcert.available({ alumni: [{ role: 'manager', path: 'idol' }] })}（要 true）`);
+
+  const scandal = RG.trainingWonderEventById('scandal');
+  console.log(`  fame=14：scandal 可用=${scandal.available(null, 14)}（要 false）　`
+    + `fame=15：scandal 可用=${scandal.available(null, 15)}（要 true）`);
+  const scandalGame = { extraFame: 10 };
+  const scandalNote = scandal.apply(scandalGame, () => 0);
+  console.log(`  醜聞扣完 extraFame：${scandalGame.extraFame}（起始 10，最少扣 4，要 <= 6）`
+    + `　文字：${scandalNote.note}`);
+  const scandalFloorGame = { extraFame: 2 };
+  scandal.apply(scandalFloorGame, () => 0.99);
+  console.log(`  extraFame 只有 2 時被扣爆：結果 ${scandalFloorGame.extraFame}（要是 0，不會變負的）`);
+
+  // 認真玩 15 年，數一數奇妙事件實際跳出來幾次、當掉幾次——
+  // 尤其 hihi 前期（注目度還不夠）不該出現，後期（注目度夠高）才會開始出現
+  const pick10 = (a) => a[Math.floor(Math.random() * a.length)];
+  const menus10 = ['batting', 'power', 'fielding', 'throwing', 'running', 'pitching', 'breaking', 'physical'];
+  const priority10 = ['academy', 'facility', 'dorm', 'clinic', 'network', 'reputation'];
+  const wonderCounts = {};
+  let hihiEarly = 0;
+  let idolConcertBad = 0;
+  let crash10 = 0;
+  for (let trial = 0; trial < 10; trial += 1) {
+    const g10 = ST.createGame({
+      managerName: '奇妙測試', schoolName: '奇妙高校', prefectureId: 'aichi', numYears: 15,
+    });
+    g10.pendingDraft = null;
+    let trainCounter10 = 0;
+    try {
+      let guard10 = 0;
+      while (g10.cursor.year <= 15 && guard10 < 4000) {
+        guard10 += 1;
+        if (g10.pendingDraft?.length) { RG.choosePerk(g10, pick10(g10.pendingDraft)); continue; }
+        if (g10.pendingTransfer) { RG.resolveTransfer(g10, 'warm'); continue; }
+        if (g10.pendingAlumniVisit) { RG.resolveAlumniVisit(g10, 'coach'); continue; }
+        if (g10.pendingWildVisit) { RG.resolveWildVisit(g10); continue; }
+        if (g10.pendingAwaken) { RG.resolveAwaken(g10, 'pass'); continue; }
+        if (g10.pendingEvent) { RG.resolveEvent(g10, 0); continue; }
+        if (g10.tacticChoices?.length && !g10.tactic) { g10.tactic = pick10(g10.tacticChoices); continue; }
+        const affordable10 = RG.UPGRADES.filter((u) => (g10.legacyPoints || 0) >= RG.upgradeCost(g10, u.id));
+        if (affordable10.length) {
+          const byPriority10 = priority10.map((id) => affordable10.find((u) => u.id === id)).filter(Boolean);
+          RG.buyUpgrade(g10, (byPriority10[0] || affordable10[0]).id);
+          continue;
+        }
+        const w10 = G.currentWeek(g10);
+        let log10;
+        if (w10.kind === 'training') {
+          const acts10 = G.availableActions(g10).filter((a) => a.kind === 'menu');
+          const want10 = menus10[trainCounter10 % menus10.length];
+          const act10 = acts10.find((a) => a.id === want10) || pick10(acts10);
+          trainCounter10 += 1;
+          log10 = G.takeAction(g10, act10.id);
+        } else {
+          log10 = G.takeAction(g10, null);
+        }
+        if (log10?.wonderEvent) {
+          wonderCounts[log10.wonderEvent.id] = (wonderCounts[log10.wonderEvent.id] || 0) + 1;
+          if (log10.wonderEvent.id === 'hihi' && S.fameOf(g10) < 60) hihiEarly += 1;
+          if (log10.wonderEvent.id === 'idolConcert'
+            && !(g10.alumni || []).some((a) => a.role === 'manager' && a.path === 'idol')) idolConcertBad += 1;
+        }
+      }
+    } catch (e) {
+      crash10 += 1;
+      console.log(`  當掉了：${e.message}`);
+    }
+  }
+  console.log(`  10 局 × 15 年，各奇妙事件觸發次數：${JSON.stringify(wonderCounts)}`);
+  console.log(`  hihi 在注目度不夠時觸發：${hihiEarly} 次（要是 0）　`
+    + `idolConcert 在沒有偶像經理校友時觸發：${idolConcertBad} 次（要是 0）　當掉 ${crash10} 次（要是 0）`);
 }
 
 console.log('');

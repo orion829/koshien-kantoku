@@ -14,7 +14,7 @@ import {
 } from '../rules/scouting.js';
 import {
   perkById, tacticById, eventById, choosePerk, resolveEvent, resolveTransfer, resolveAwaken,
-  resolveAlumniVisit, UPGRADES,
+  resolveAlumniVisit, resolveWildVisit, graduatePathById, UPGRADES,
 } from '../rules/roguelike.js';
 
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -205,6 +205,26 @@ function alumniPanel(game) {
     </div>`;
 }
 
+/** 畢業生回訪：走上千奇百怪那條路的校友偶爾回來串門子，帶點小驚喜，沒有風險 */
+function wildVisitPanel(game) {
+  const a = game.pendingWildVisit;
+  if (!a) return '';
+  const job = graduatePathById(a.path)?.label || '';
+  return `
+    <div class="event event--alumni event--wild">
+      <h3 class="event__title">畢業的校友回來串門子了</h3>
+      <p class="event__text">
+        <b>${a.name}</b>（${job}）今天路過，順道回母校看看。
+      </p>
+      <div class="picks picks--one">
+        <button type="button" class="card-pick card-pick--opt" data-act="wildVisit:ok">
+          <b class="card-pick__name">歡迎他</b>
+          <span class="card-pick__desc">看看他會帶來什麼</span>
+        </button>
+      </div>
+    </div>`;
+}
+
 /**
  * 校務投資：把這一年賺到的傳承點數拿去買永久升級。
  * 不會強迫玩家買，也不會擋住下一步——買完可以繼續買，或直接按下一步跳過。
@@ -318,13 +338,20 @@ function lastResultBox(game) {
 
   if (l.results) {
     const lost = l.results.some((r) => !r.won);
+    const w = l.wonderEvent;
     return `
       <div class="last last--${lost ? 'lose' : 'win'}">
         <span class="last__head">上一週：${l.event}</span>
+        ${w ? `<p class="last__note last__note--wonder${w.negative ? ' last__note--bad' : ''}">
+          🎲 奇妙事件：<b>${w.name}</b>　${w.desc}</p>` : ''}
         ${weekGames(l.results)}
         ${lost ? '<p class="last__note">被淘汰了。後面的比賽週會變成練習週。</p>' : ''}
       </div>`;
   }
+
+  const w = l.wonderEvent;
+  const wonderTag = w ? `<p class="last__note last__note--wonder${w.negative ? ' last__note--bad' : ''}">
+    🎲 奇妙事件：<b>${w.name}</b>　${w.desc}</p>` : '';
 
   if (l.scoutResult) {
     const j = l.scoutResult.joined.map((x) => `
@@ -334,6 +361,7 @@ function lastResultBox(game) {
       <li class="muted">${x.name} ★${x.talent}（好感度只有 ${x.interest}，跑掉了）</li>`).join('');
     return `<div class="last last--${j ? 'win' : 'lose'}">
       <span class="last__head">上一週：招生截止</span>
+      ${wonderTag}
       ${j ? `<h4 class="bs__h">確定入學（四月報到）</h4><ul class="grew">${j}</ul>` : ''}
       ${m ? `<h4 class="bs__h">沒招到</h4><ul class="grew">${m}</ul>` : ''}
       ${!j ? '<p class="last__note">一個都沒招到。四月會有幾個自己來的，但都很弱。</p>' : ''}
@@ -379,6 +407,7 @@ function lastResultBox(game) {
       ? `<li class="muted">還有 ${l.studyResult.length - 8} 個人進步了</li>` : '';
     return `<div class="last last--plain">
       <span class="last__head">上一週：讀書</span>
+      ${wonderTag}
       ${rows ? `<ul class="ups">${rows}${more}</ul>` : '<p class="muted">大家的學力都已經頂上去了。</p>'}
     </div>`;
   }
@@ -386,6 +415,7 @@ function lastResultBox(game) {
   if (l.scoutVisit) {
     return `<div class="last last--plain">
       <span class="last__head">上一週：${l.action}</span>
+      ${wonderTag}
       <div class="last__row">
         <span class="delta"><i>好感度</i><b>+${l.scoutVisit.gained}</b></span>
         <span class="muted">現在 ${l.scoutVisit.interest} / ${l.scoutVisit.threshold}</span>
@@ -438,7 +468,21 @@ function lastResultBox(game) {
     </div>`;
   }
 
-  if (!l.gains) return '';
+  if (l.wildVisitResult) {
+    const a = l.wildVisitResult;
+    return `<div class="last last--win">
+      <span class="last__head">${l.event}：${a.name}（${a.job}）</span>
+      <p class="last__note">${a.note}</p>
+    </div>`;
+  }
+
+  if (!l.gains) {
+    if (!wonderTag) return '';
+    return `<div class="last last--plain">
+      <span class="last__head">上一週：${l.action}</span>
+      ${wonderTag}
+    </div>`;
+  }
 
   const deltas = l.gains.avg.map((g) => `
     <span class="delta"><i>${g.name}</i><b>+${g.value.toFixed(1)}</b></span>`).join('');
@@ -454,6 +498,7 @@ function lastResultBox(game) {
       <span class="last__head">上一週：${l.action}
         <em>效率 ${pct(l.efficiency)}</em>
         ${l.boost ? `<em class="boost">事件加成 ×${l.boost.toFixed(2)}</em>` : ''}</span>
+      ${wonderTag}
       <div class="last__row">${deltas || '<span class="muted">沒什麼變化</span>'}</div>
       ${ups ? `<ul class="ups">${ups}${more}</ul>` : ''}
       ${(l.injured || []).length ? `<ul class="injs">${l.injured.map((x) => `
@@ -498,8 +543,9 @@ function logList(game) {
     if (l.results) {
       const rs = l.results.map((r) => `
         <span class="res res--${r.won ? 'win' : 'lose'}">${r.round} ${r.won ? '勝' : '敗'}</span>`).join('');
+      const wonderTag = l.wonderEvent ? `<span class="log__wonder" title="${l.wonderEvent.name}">🎲</span>` : '';
       return `<li class="log log--match"><span class="log__wk">#${l.week}</span>
-        <span class="log__body"><b>${l.event}</b>${rs}</span></li>`;
+        <span class="log__body"><b>${l.event}</b>${wonderTag}${rs}</span></li>`;
     }
     if (l.eventResult) {
       return `<li class="log log--event"><span class="log__wk">#${l.week}</span>
@@ -521,10 +567,16 @@ function logList(game) {
         <span class="log__body">${l.event}
         → <b>${l.alumniResult.name}</b></span></li>`;
     }
+    if (l.wildVisitResult) {
+      return `<li class="log log--alumni"><span class="log__wk">#${l.week}</span>
+        <span class="log__body">${l.event}
+        → <b>${l.wildVisitResult.name}</b></span></li>`;
+    }
     const extra = l.trained
       ? `<span class="log__eff">效率 ${pct(l.efficiency)}</span>` : '';
+    const wonderTag = l.wonderEvent ? `<span class="log__wonder" title="${l.wonderEvent.name}">🎲</span>` : '';
     return `<li class="log log--${l.kind}"><span class="log__wk">#${l.week}</span>
-      <span class="log__body">${l.event}
+      <span class="log__body">${l.event}${wonderTag}
       ${l.action ? `→ <b>${l.action}</b>` : ''}${extra}</span></li>`;
   }).join('');
   return items ? `<ul class="logs">${items}</ul>`
@@ -563,8 +615,9 @@ export function renderWeek(root, game, onChange) {
     : w.kind === 'training'
       ? (game.pendingTransfer ? transferPanel(game)
         : game.pendingAlumniVisit ? alumniPanel(game)
-          : game.pendingAwaken ? awakenPanel(game)
-            : game.pendingEvent ? eventPanel(game) : actionButtons(game))
+          : game.pendingWildVisit ? wildVisitPanel(game)
+            : game.pendingAwaken ? awakenPanel(game)
+              : game.pendingEvent ? eventPanel(game) : actionButtons(game))
       : `<div class="acts acts--match">
            <button type="button" class="act act--go" data-act="__next">
              <b>下一步</b><span>${w.event}</span>
@@ -584,7 +637,8 @@ export function renderWeek(root, game, onChange) {
         ${perkStrip(game)}
         ${lastResultBox(game)}
         ${w.kind === 'training' && !game.pendingEvent && !game.pendingTransfer
-        && !game.pendingAwaken && !game.pendingAlumniVisit ? moraleBox(game) : ''}
+        && !game.pendingAwaken && !game.pendingAlumniVisit && !game.pendingWildVisit
+          ? moraleBox(game) : ''}
         ${body}
 
         ${injuryList(game)}
@@ -658,6 +712,11 @@ function bindActions(root, game, onChange) {
       }
       if (id.startsWith('alumni:')) {
         push(resolveAlumniVisit(game, id.slice(7)));
+        onChange();
+        return;
+      }
+      if (id.startsWith('wildVisit:')) {
+        push(resolveWildVisit(game));
         onChange();
         return;
       }

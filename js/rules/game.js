@@ -35,7 +35,8 @@ import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
   pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
   rollAlumniVisit, resolveAlumniVisit, legacyPointsFor, buyUpgrade, upgradeCost, resolveExam,
-  refreshExamEligibility, createManager, rollGraduatePath, managerSkillById,
+  refreshExamEligibility, createManager, rollGraduatePath, managerSkillById, rollWildVisit,
+  rollWonderEvent, rollTrainingWonderEvent,
 } from './roguelike.js';
 
 export {
@@ -173,8 +174,9 @@ export const WEEKLY_PITCH_LIMIT = 500;
 /**
  * 打完這一週的比賽。一週最多三場，輸了就停。
  * 每一場都是完整的模擬，會產生詳細的紀錄表。
+ * wonder：這一週先算好的奇妙事件（見 takeAction），沒有就是 null。
  */
-export function playWeek(game, rng = Math.random) {
+export function playWeek(game, rng = Math.random, wonder = null) {
   const w = currentWeek(game);
   const prog = game.progress[game.cursor.year - 1];
 
@@ -187,8 +189,9 @@ export function playWeek(game, rng = Math.random) {
     }
   }
 
-  // 傳統 ＋ 這一週選的作戰
+  // 傳統 ＋ 這一週選的作戰 ＋ 這一週的奇妙事件（例如被知名 YouTuber 盯上）
   const mods = matchMods(game);
+  wonder?.apply(mods);
 
   // 這一週的投球數要跨場累計（500 球規則）
   const pitchedThisWeek = new Map();
@@ -345,7 +348,7 @@ export function takeAction(game, actionId, rng = Math.random) {
   if (!w) return null;
   // 還有沒選的三選一或事件，先擋著
   if (game.pendingDraft || game.pendingEvent || game.pendingTransfer
-    || game.pendingAwaken || game.pendingAlumniVisit) return null;
+    || game.pendingAwaken || game.pendingAlumniVisit || game.pendingWildVisit) return null;
   // 校務投資面板只顯示一畫面：離開這一畫面（不管做什麼行動）就收起來
   game.pendingInvest = false;
 
@@ -356,11 +359,19 @@ export function takeAction(game, actionId, rng = Math.random) {
   const log = { week: w.abs, month: w.month, event: w.event, kind: w.kind };
 
   if (w.kind === 'match') {
-    log.results = playWeek(game, rng);
+    const wonder = rollWonderEvent(game, fameOf(game), rng);
+    if (wonder) {
+      log.wonderEvent = {
+        id: wonder.id, name: wonder.name, desc: wonder.desc, negative: !!wonder.negative,
+      };
+    }
+    log.results = playWeek(game, rng, wonder);
   } else if (w.kind === 'training') {
     const eff = efficiency(game.morale.weeksSinceMatch);
     log.efficiency = eff;
     log.morale = moraleLabel(game.morale.weeksSinceMatch);
+    const trainingWonder = rollTrainingWonderEvent(game, fameOf(game), rng);
+    if (trainingWonder) log.wonderEvent = trainingWonder;
     if (actionId === 'practice') {
       game.morale.weeksSinceMatch = Math.max(
         PRACTICE_FLOOR,
@@ -618,7 +629,7 @@ function step(game, rng) {
     if (drawn.length) game.pendingDraft = drawn;
   }
   if (nw.kind === 'training') {
-    // 一週最多跳一張卡：轉學生優先，再來是學長探班、覺醒，最後才是一般事件
+    // 一週最多跳一張卡：轉學生優先，再來是職棒學長探班、畢業生回訪、覺醒，最後才是一般事件
     if (game.transferWeekIndex === game.cursor.week - 1 && !game.pendingTransfer) {
       game.pendingTransfer = rollTransferStudent(game, rng);
       game.transferWeekIndex = -1;
@@ -626,10 +637,15 @@ function step(game, rng) {
       const alum = rollAlumniVisit(game, rng);
       if (alum) {
         game.pendingAlumniVisit = alum;
-      } else if (!game.pendingAwaken) {
-        const awaken = rollAwaken(game, rng);
-        if (awaken) game.pendingAwaken = awaken;
-        else if (!game.pendingEvent) game.pendingEvent = rollEvent(game, rng);
+      } else if (!game.pendingWildVisit) {
+        const wild = rollWildVisit(game, rng);
+        if (wild) {
+          game.pendingWildVisit = wild;
+        } else if (!game.pendingAwaken) {
+          const awaken = rollAwaken(game, rng);
+          if (awaken) game.pendingAwaken = awaken;
+          else if (!game.pendingEvent) game.pendingEvent = rollEvent(game, rng);
+        }
       }
     }
   }
