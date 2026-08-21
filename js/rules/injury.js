@@ -37,9 +37,9 @@ const pick = (list, rng) => list[Math.floor(rng() * list.length)];
 
 /** 比賽的受傷機率。投球數是最大的因素 */
 export function matchInjuryChance(player, pitches = 0) {
-  let p = 0.013;
+  let p = 0.017;
   if (pitches > 0) {
-    p = 0.012 + Math.max(0, pitches - 90) * 0.00055;   // 90 球以上開始加速
+    p = 0.016 + Math.max(0, pitches - 90) * 0.0007;   // 90 球以上開始加速
   }
   if (has(player, 'durable')) p *= 0.45;
   if (has(player, 'fragile')) p *= 2.1;
@@ -48,7 +48,7 @@ export function matchInjuryChance(player, pitches = 0) {
 
 /** 練習的受傷機率。比比賽低很多 */
 export function trainInjuryChance(player) {
-  let p = 0.004;
+  let p = 0.005;
   if (has(player, 'durable')) p *= 0.45;
   if (has(player, 'fragile')) p *= 2.1;
   return p;
