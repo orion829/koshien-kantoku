@@ -682,28 +682,37 @@ head('疲勞：打越多球越累，累了表現打折、更容易受傷，「�
   console.log(`  疲勞 0 受傷倍率 ${F.fatigueInjuryMult(0).toFixed(2)}　`
     + `疲勞 100 受傷倍率 ${F.fatigueInjuryMult(100).toFixed(2)}`);
 
-  // 跑一整年，連續打好幾週比賽，看王牌投手的疲勞會不會真的累積上去
-  const g3 = ST.createGame({
-    managerName: '疲勞測試', schoolName: '疲勞高校', prefectureId: 'aichi', numYears: 1,
-  });
-  g3.pendingDraft = null;
   const pick3 = (a) => a[Math.floor(Math.random() * a.length)];
-  let guard3 = 0;
-  let maxFatigue = 0;
-  while (guard3 < 60) {
-    guard3 += 1;
-    const w3 = G.currentWeek(g3);
-    if (!w3) break;
-    if (g3.pendingTransfer) { RG.resolveTransfer(g3, 'warm'); continue; }
-    if (g3.pendingAlumniVisit) { RG.resolveAlumniVisit(g3, 'coach'); continue; }
-    if (g3.pendingAwaken) { RG.resolveAwaken(g3, 'pass'); continue; }
-    if (g3.pendingEvent) { RG.resolveEvent(g3, 0); continue; }
-    if (g3.tacticChoices?.length && !g3.tactic) { g3.tactic = pick3(g3.tacticChoices); continue; }
-    G.takeAction(g3, w3.kind === 'training' ? 'practice' : null);
-    maxFatigue = Math.max(maxFatigue, ...g3.team.players.map((p) => p.fatigue || 0));
+
+  // 王牌投手連續操好幾週，疲勞要真的累積到有感的程度——
+  // 這裡跑好幾局取平均，避免抽到特別輕鬆的一局造成誤判
+  let totalAceMax = 0;
+  const trials = 8;
+  for (let t = 0; t < trials; t += 1) {
+    const g3b = ST.createGame({
+      managerName: '疲勞測試2', schoolName: '疲勞高校2', prefectureId: 'aichi', numYears: 3,
+    });
+    g3b.pendingDraft = null;
+    let guard3b = 0;
+    let aceMax = 0;
+    while (guard3b < 180) {
+      guard3b += 1;
+      const w3b = G.currentWeek(g3b);
+      if (!w3b) break;
+      if (g3b.pendingDraft?.length) { RG.choosePerk(g3b, pick3(g3b.pendingDraft)); continue; }
+      if (g3b.pendingTransfer) { RG.resolveTransfer(g3b, 'warm'); continue; }
+      if (g3b.pendingAlumniVisit) { RG.resolveAlumniVisit(g3b, 'coach'); continue; }
+      if (g3b.pendingAwaken) { RG.resolveAwaken(g3b, 'pass'); continue; }
+      if (g3b.pendingEvent) { RG.resolveEvent(g3b, 0); continue; }
+      if (g3b.tacticChoices?.length && !g3b.tactic) { g3b.tactic = pick3(g3b.tacticChoices); continue; }
+      G.takeAction(g3b, w3b.kind === 'training' ? 'batting' : null);
+      const pitcherFatigues = g3b.team.players.filter((p) => P.isPitcher(p)).map((p) => p.fatigue || 0);
+      if (pitcherFatigues.length) aceMax = Math.max(aceMax, ...pitcherFatigues);
+    }
+    totalAceMax += aceMax;
   }
-  console.log(`  一路打過夏季甲子園，全隊疲勞最高值 ${maxFatigue.toFixed(0)}`
-    + `（要 > 0，代表真的有累積；也不該衝到 100 貼頂）`);
+  console.log(`  3 年局、跑 ${trials} 次，投手疲勞最高值平均 ${(totalAceMax / trials).toFixed(0)}`
+    + `（要有感——至少要摸得到 50、60 這種等級，不然操到見底也沒感覺）`);
 }
 
 head('宿敵對戰紀錄：同一個對手名字打滿 3 次才算宿敵');

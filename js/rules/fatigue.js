@@ -6,12 +6,12 @@
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-export const FATIGUE_WEEKLY_DECAY = 5;
-export const FATIGUE_REST_DECAY = 14;
+export const FATIGUE_WEEKLY_DECAY = 4;
+export const FATIGUE_REST_DECAY = 16;
 
 /** 打完一場比賽累積的疲勞。投手看投球數，野手是固定的量 */
 export function addMatchFatigue(player, pitches = 0) {
-  const gain = pitches > 0 ? pitches * 0.06 : 3;
+  const gain = pitches > 0 ? pitches * 0.09 : 4;
   player.fatigue = clamp((player.fatigue || 0) + gain, 0, 100);
 }
 
