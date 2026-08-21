@@ -80,6 +80,9 @@ export const isRunOver = (game) => currentWeek(game) === null;
 export const SPECIAL_ACTIONS = [
   { id: 'practice', name: '練習賽', desc: '不長能力，但可以把士氣計時器往回撥 4 週' },
   { id: 'rest', name: '休息', desc: '消疲勞（疲勞系統還沒做）', todo: true },
+  {
+    id: 'study', name: '讀書', desc: '不練球，但全隊學力 +6（越低分進步越快）',
+  },
   { id: 'scout', name: '招生', desc: '去看國中生，提高他來的意願', window: 'winter' },
   { id: 'recon', name: '偵察對手', desc: '看下一場的對手（還沒做）', todo: true, window: 'preMatch' },
 ];
@@ -267,7 +270,7 @@ function applyMatchOutcome(game, m, rng, mods = null, phase = null) {
 
     const gains = growFromMatch(p, bat.get(id), pit.get(id));
     const total = Object.values(gains).reduce((a, b) => a + b, 0);
-    if (total > 0.05) grew.push({ name: p.name, gains, total });
+    if (total > 0.05) grew.push({ id: p.id, name: p.name, gains, total });
     scoutGainFromMatch(p, bat.get(id), pit.get(id), phase);
     accumulateCareerStats(p, bat.get(id), pit.get(id));
 
@@ -329,6 +332,17 @@ export function takeAction(game, actionId, rng = Math.random) {
         };
       }
       game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'rest');
+    } else if (actionId === 'study') {
+      // 不練球，全隊讀書拉學力——低分的人進步比較快，比較容易追上及格線
+      const players = healthy(active(game.team.players));
+      log.studyResult = players.map((p) => {
+        const from = p.gakuryoku;
+        const gain = Math.round(clamp(9 - from / 100 * 5, 3, 9) * eff);
+        p.gakuryoku = Math.min(100, from + gain);
+        return { id: p.id, name: p.name, from, to: p.gakuryoku };
+      }).filter((g) => g.to > g.from);
+      game.morale.weeksSinceMatch = advance(game.morale.weeksSinceMatch, 'train');
+      log.action = '讀書';
     } else if (menuById(actionId)) {
       // 養傷中的人不參加練習
       const players = healthy(active(game.team.players));
@@ -486,7 +500,9 @@ function summariseGains(players, results, before) {
     for (const [stat, v] of Object.entries(p.abilities)) {
       const now = grade(v);
       if (was[stat] && was[stat] !== now) {
-        ups.push({ name: p.name, stat: STAT_NAME[stat], from: was[stat], to: now });
+        ups.push({
+          id: p.id, name: p.name, stat: STAT_NAME[stat], from: was[stat], to: now,
+        });
       }
     }
   });

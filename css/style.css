@@ -1750,3 +1750,58 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- 選手預覽小卡（滑鼠移到名字上） ---------- */
+
+[data-pid] {
+  cursor: help;
+  border-bottom: 1px dotted var(--muted);
+}
+
+.player-tip {
+  position: fixed;
+  z-index: 999;
+  width: 240px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.player-tip__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.player-tip__pos {
+  background: var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.player-tip__name { flex: 1; font-size: 13px; }
+.player-tip__ovr { font-weight: 700; font-size: 14px; }
+
+.player-tip__line { color: var(--muted); margin-bottom: 6px; }
+.player-tip__ret { color: var(--accent); margin-left: 4px; }
+
+.player-tip__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+}
+
+.player-tip__stat i { font-style: normal; color: var(--muted); margin-right: 2px; }
+
+.player-tip__warn {
+  color: var(--danger);
+  font-weight: 700;
+  margin-top: 6px;
+}

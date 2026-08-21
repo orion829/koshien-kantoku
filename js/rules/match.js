@@ -401,7 +401,7 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
 
     if (['hr', 'triple', 'double'].includes(r.kind) || (rbi >= 2)) {
       plays.push({
-        inning, team: off.name, batter: batter.name,
+        inning, team: off.name, batter: batter.name, batterId: batter.id,
         kind: r.kind, rbi, pos: position,
       });
     }

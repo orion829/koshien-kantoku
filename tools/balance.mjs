@@ -582,6 +582,30 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
   const eligible = weakPlayers.length - rw.failed.length;
   console.log(`  20 人全部學力 0（最壞情況）：還能出賽 ${eligible} 人`
     + `（保底 ${RG.EXAM_MIN_ELIGIBLE} 人，要 >= ${R.MIN_PLAYERS}）`);
+
+  // 「讀書」這個練習項目：學力不夠的話玩家自己選得到，不是只能靠隨機事件——
+  // 這裡驗證一個學力很低的人，選幾次讀書才追得上及格線
+  const g2 = ST.createGame({
+    managerName: '讀書測試', schoolName: '讀書高校', prefectureId: 'aichi',
+  });
+  g2.pendingDraft = null;
+  const target = g2.team.players.find((p) => p.gradeYear === 1);
+  target.gakuryoku = 10;
+  let weeks = 0;
+  let guard2 = 0;
+  while (target.gakuryoku < 50 && guard2 < 200) {
+    guard2 += 1;
+    if (g2.pendingDraft?.length) { RG.choosePerk(g2, g2.pendingDraft[0]); continue; }
+    if (g2.pendingTransfer) { RG.resolveTransfer(g2, 'warm'); continue; }
+    if (g2.pendingAlumniVisit) { RG.resolveAlumniVisit(g2, 'coach'); continue; }
+    if (g2.pendingAwaken) { RG.resolveAwaken(g2, 'pass'); continue; }
+    if (g2.pendingEvent) { RG.resolveEvent(g2, 0); continue; }
+    if (g2.tacticChoices?.length && !g2.tactic) { g2.tactic = g2.tacticChoices[0]; continue; }
+    const w2 = G.currentWeek(g2);
+    G.takeAction(g2, w2.kind === 'training' ? 'study' : null);
+    if (w2.kind === 'training') weeks += 1;
+  }
+  console.log(`  學力 10 分的人，選「讀書」選了 ${weeks} 次追到 50 分以上（現在 ${Math.round(target.gakuryoku)} 分）`);
 }
 
 console.log('');

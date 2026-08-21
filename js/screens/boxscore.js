@@ -47,7 +47,7 @@ function battingTable(us) {
   const rows = us.batters.map((b) => `
     <tr>
       <td class="bs__pos">${b.pos}</td>
-      <td class="bs__name">${b.name}</td>
+      <td class="bs__name" data-pid="${b.id}">${b.name}</td>
       <td>${b.ab}</td>
       <td class="${b.h ? 'hi' : ''}">${b.h}</td>
       <td class="${b.hr ? 'hi' : ''}">${b.hr || '－'}</td>
@@ -68,7 +68,7 @@ function battingTable(us) {
 function pitchingTable(us) {
   const rows = us.pitchers.map((p) => `
     <tr>
-      <td class="bs__name">${p.name}</td>
+      <td class="bs__name" data-pid="${p.id}">${p.name}</td>
       <td>${ip(p.outs)}</td>
       <td>${p.h}</td>
       <td class="${p.r ? '' : 'hi'}">${p.r}</td>
@@ -88,7 +88,7 @@ function highlights(r) {
   if (!r.plays?.length) return '';
   const items = r.plays.slice(0, 6).map((p) => `
     <li><span class="hl__inn">${p.inning}局</span>
-      <b>${p.batter}</b> ${KIND_NAME[p.kind] || p.kind}
+      <b data-pid="${p.batterId}">${p.batter}</b> ${KIND_NAME[p.kind] || p.kind}
       ${p.rbi ? `<span class="hl__rbi">${p.rbi}打點</span>` : ''}</li>`).join('');
   return `<h4 class="bs__h">精彩場面</h4><ul class="hl">${items}</ul>`;
 }
@@ -97,14 +97,14 @@ function growthBlock(r) {
   const g = r.growth;
   if (!g) return '';
   const grew = [...g.grew].sort((a, b) => b.total - a.total).slice(0, 5).map((x) => `
-    <li><b>${x.name}</b>
+    <li><b data-pid="${x.id}">${x.name}</b>
       ${Object.entries(x.gains).filter(([, v]) => v >= 0.08)
     .map(([k, v]) => `<span class="delta"><i>${STAT_NAME[k]}</i><b>+${v.toFixed(1)}</b></span>`)
     .join('')}</li>`).join('');
 
   const hurt = g.injured.map((x) => `
     <li class="inj inj--${x.severity}">
-      <b>${x.name}</b> ${x.label}（${x.cause}）
+      <b data-pid="${x.id}">${x.name}</b> ${x.label}（${x.cause}）
       休養 ${x.weeks} 週、能力 −${x.drop}
       ${x.permanent ? `<span class="inj__perm">上限永久 −${x.permanent}</span>` : ''}
       ${x.pitches > 100 ? `<span class="inj__why">投了 ${x.pitches} 球</span>` : ''}

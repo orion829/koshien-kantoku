@@ -62,7 +62,7 @@ function compactRoster(game) {
       <li class="mini${hurt || isBanned ? ' mini--hurt' : ''}">
         <div class="mini__head">
           <span class="mini__pos">${pos}</span>
-          <span class="mini__name">${p.name}</span>
+          <span class="mini__name" data-pid="${p.id}">${p.name}</span>
           <span class="growth growth--${gt.id}">${gt.name}</span>
           <span class="mini__talent">${stars(p.talent)}</span>
           <span class="mini__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
@@ -382,6 +382,19 @@ function lastResultBox(game) {
     </div>`;
   }
 
+  if (l.studyResult) {
+    const rows = l.studyResult.slice(0, 8).map((s) => `
+      <li><b data-pid="${s.id}">${s.name}</b>
+        <span class="g g--${grade(s.from)}">${grade(s.from)}</span> →
+        <span class="g g--${grade(s.to)}">${grade(s.to)}</span></li>`).join('');
+    const more = l.studyResult.length > 8
+      ? `<li class="muted">還有 ${l.studyResult.length - 8} 個人進步了</li>` : '';
+    return `<div class="last last--plain">
+      <span class="last__head">上一週：讀書</span>
+      ${rows ? `<ul class="ups">${rows}${more}</ul>` : '<p class="muted">大家的學力都已經頂上去了。</p>'}
+    </div>`;
+  }
+
   if (l.scoutVisit) {
     return `<div class="last last--plain">
       <span class="last__head">上一週：${l.action}</span>
@@ -401,12 +414,12 @@ function lastResultBox(game) {
       <p class="last__note">三年級 ${l.retired} 人退隊，已經從名單上移除。</p>
       ${careers.length ? `<h4 class="bs__h">畢業生涯戰績</h4>
         <ul class="grew">${careers.map((c) => `
-          <li><b>${c.name}</b> ${positionById(c.position)?.short || ''}
+          <li><b data-pid="${c.id}">${c.name}</b> ${positionById(c.position)?.short || ''}
             ${draftedIds.has(c.id) ? '<span class="superstar-tag">職棒選秀</span>' : ''}
             <span class="muted">${c.line}</span></li>`).join('')}</ul>` : ''}
       ${drafted.length ? `<h4 class="bs__h">職棒選秀會上被選走了！</h4>
         <ul class="grew">${drafted.map((d) => `
-          <li><b>${d.name}</b> ${positionById(d.position)?.short || ''}
+          <li><b data-pid="${d.id}">${d.name}</b> ${positionById(d.position)?.short || ''}
             <span class="cand__talent">${'★'.repeat(d.talent)}${'☆'.repeat(5 - d.talent)}</span>
             <span class="muted">（注目度 ${d.attention}）</span></li>`).join('')}</ul>` : ''}
       ${l.legacyEarned ? `<p class="last__note">這一年賺了 <b>${l.legacyEarned}</b> 點傳承點數，
@@ -441,7 +454,7 @@ function lastResultBox(game) {
   const deltas = l.gains.avg.map((g) => `
     <span class="delta"><i>${g.name}</i><b>+${g.value.toFixed(1)}</b></span>`).join('');
   const ups = l.gains.ups.slice(0, 6).map((u) => `
-    <li><b>${u.name}</b> ${u.stat}
+    <li><b data-pid="${u.id}">${u.name}</b> ${u.stat}
       <span class="g g--${u.from}">${u.from}</span> →
       <span class="g g--${u.to}">${u.to}</span></li>`).join('');
   const more = l.gains.ups.length > 6
@@ -455,7 +468,7 @@ function lastResultBox(game) {
       <div class="last__row">${deltas || '<span class="muted">沒什麼變化</span>'}</div>
       ${ups ? `<ul class="ups">${ups}${more}</ul>` : ''}
       ${(l.injured || []).length ? `<ul class="injs">${l.injured.map((x) => `
-        <li class="inj inj--${x.severity}"><b>${x.name}</b> 練習時${x.label}（${x.cause}）
+        <li class="inj inj--${x.severity}"><b data-pid="${x.id}">${x.name}</b> 練習時${x.label}（${x.cause}）
           休養 ${x.weeks} 週、能力 −${x.drop}
           ${x.permanent ? `<span class="inj__perm">上限永久 −${x.permanent}</span>` : ''}
         </li>`).join('')}</ul>` : ''}
@@ -469,7 +482,7 @@ function injuryList(game) {
   if (!hurt.length) return '';
   const items = hurt.map((p) => `
     <li class="inj inj--${p.injury.severity}">
-      <b>${p.name}</b> ${p.injury.name}（${p.injury.cause}）
+      <b data-pid="${p.id}">${p.name}</b> ${p.injury.name}（${p.injury.cause}）
       <span class="inj__weeks">還要 ${p.injury.weeks} 週</span>
     </li>`).join('');
   return `<h3 class="sec">養傷中<span class="hint">（不能上場也不會練習）</span></h3>
@@ -484,7 +497,7 @@ function examBanList(game) {
   if (!list.length) return '';
   const items = list.map((p) => `
     <li class="inj inj--medium">
-      <b>${p.name}</b> 學力不及格
+      <b data-pid="${p.id}">${p.name}</b> 學力不及格
       <span class="inj__weeks">下次考試前不能出賽</span>
     </li>`).join('');
   return `<h3 class="sec">停賽中<span class="hint">（期末考沒過，練習不受影響）</span></h3>

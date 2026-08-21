@@ -5,6 +5,7 @@ import { renderRoster } from './roster.js';
 import { renderSchedule } from './schedule.js';
 import { radarSVG } from './radar.js';
 import { renderTimeline } from './timeline.js';
+import { initPlayerTooltip } from './playerTooltip.js';
 import { teamStrength } from '../rules/game.js';
 import { efficiency, moraleLabel } from '../rules/morale.js';
 
@@ -39,6 +40,7 @@ function legacyBadge(game) {
 /** 上任之後的主畫面 */
 export function renderTeam(root, game, onReset) {
   let active = TABS[0].id;
+  initPlayerTooltip(game);
 
   root.innerHTML = `
     <div class="screen">

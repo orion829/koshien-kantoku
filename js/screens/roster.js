@@ -34,7 +34,7 @@ function playerRow(p, registered, examBanned) {
       <button type="button" class="player__head">
         <span class="player__year y${p.gradeYear}">${gradeYearLabel(p.gradeYear)}</span>
         <span class="player__pos">${pos.short}</span>
-        <span class="player__name">${p.name}</span>
+        <span class="player__name" data-pid="${p.id}">${p.name}</span>
         <span class="growth growth--${gt.id}">${gt.name}</span>
         <span class="player__talent">${stars(p.talent)}</span>
         <span class="player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>

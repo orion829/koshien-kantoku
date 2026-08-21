@@ -95,7 +95,7 @@ export function injure(player, rng = Math.random) {
   };
 
   return {
-    name: player.name, severity: sev.id, label: sev.name, cause, weeks, drop, permanent,
+    id: player.id, name: player.name, severity: sev.id, label: sev.name, cause, weeks, drop, permanent,
   };
 }
 
