@@ -16,9 +16,9 @@ export const ARCHETYPES = {
     id: 'normal',
     name: '普通的隊伍',
     weight: 80,
-    desc: '沒什麼特別的，該有的都有。慢慢養到第三年。',
+    desc: '沒什麼特別的，資質都很普通。慢慢養到第三年。',
     perGrade: [5, 8],
-    talent: [1, 3],
+    talent: [1, 2],
     stars: 0,
   },
   weak: {
@@ -27,7 +27,7 @@ export const ARCHETYPES = {
     weight: 15,
     desc: '人數快不夠了。先想辦法把人湊齊再說。',
     perGrade: [3, 4],
-    talent: [1, 2],
+    talent: [1, 1],
     stars: 0,
   },
   golden: {
@@ -36,7 +36,7 @@ export const ARCHETYPES = {
     weight: 5,
     desc: '三年級是即戰力，但八月就退隊了。要不要現在就拚？',
     perGrade: [5, 8],
-    talent: [1, 3],
+    talent: [1, 2],
     stars: 3, // 三年級裡有幾個 4〜5 星
   },
 };
