@@ -152,7 +152,7 @@ export function teamStrength(all) {
  */
 const OPPONENT = {
   regional: { base: 42, step: 2.5 },
-  koshien: { base: 48, step: 3 },
+  koshien: { base: 50, step: 3 },
   autumn: { base: 36, step: 5 },
   autumnArea: { base: 50, step: 5 },
   senbatsu: { base: 58, step: 4 },
@@ -161,7 +161,7 @@ const OPPONENT = {
 function opponentStrength(phase, roundIndex, wins) {
   const o = OPPONENT[phase] || { base: 40, step: 4 };
   // 激戰區的對手比較強
-  const local = phase === 'regional' ? (wins - 6) * -0.3 : 0;
+  const local = phase === 'regional' ? (wins - 6) * -0.55 : 0;
   return o.base + local + roundIndex * o.step;
 }
 

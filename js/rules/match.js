@@ -15,6 +15,7 @@ import { POSITIONS, positionById } from '../data/abilities.js';
 import { randomOpponentName } from '../data/schools.js';
 import { createPlayer, isPitcher, overall } from './player.js';
 import { baseMods, rollOpponentTrait } from './roguelike.js';
+import { fatiguePenalty } from './fatigue.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const has = (p, id) => p.skills?.includes(id);
@@ -70,9 +71,12 @@ export function buildLineup(players, {
   const pool = players.filter((p) => !p.injury || p.injury.weeks <= 0);
   // 投球數超過一週上限的人還是要上場打擊，只是不能投球
   const blocked = new Set(cannotPitch);
+  // 排先發投手要把疲勞算進去——不然王牌會一直被排上場，
+  // 疲勞怎麼設都沒用，因為系統從來不會真的換人
+  const effectivePitching = (p) => overall(p) * fatiguePenalty(p.fatigue);
   const pitchers = pool
     .filter((p) => isPitcher(p) && !blocked.has(p.id))
-    .sort((a, b) => overall(b) - overall(a));
+    .sort((a, b) => effectivePitching(b) - effectivePitching(a));
   const starter = pool.find((p) => p.id === pitcherId && !blocked.has(p.id))
     || pitchers[0]
     || pool.filter((p) => !blocked.has(p.id))[0]

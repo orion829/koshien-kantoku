@@ -713,6 +713,35 @@ head('疲勞：打越多球越累，累了表現打折、更容易受傷，「�
   }
   console.log(`  3 年局、跑 ${trials} 次，投手疲勞最高值平均 ${(totalAceMax / trials).toFixed(0)}`
     + `（要有感——至少要摸得到 50、60 這種等級，不然操到見底也沒感覺）`);
+
+  // 排先發要把疲勞算進去，不然王牌會一直被排上場，
+  // 累到見底也不會換人——這裡驗證真的有換人
+  const g3c = ST.createGame({
+    managerName: '輪值測試', schoolName: '輪值高校', prefectureId: 'aichi', numYears: 1,
+  });
+  g3c.pendingDraft = null;
+  let guard3c = 0;
+  const usedStarters = new Set();
+  while (guard3c < 60) {
+    guard3c += 1;
+    const w3c = G.currentWeek(g3c);
+    if (!w3c) break;
+    if (g3c.pendingDraft?.length) { RG.choosePerk(g3c, pick3(g3c.pendingDraft)); continue; }
+    if (g3c.pendingTransfer) { RG.resolveTransfer(g3c, 'warm'); continue; }
+    if (g3c.pendingAlumniVisit) { RG.resolveAlumniVisit(g3c, 'coach'); continue; }
+    if (g3c.pendingAwaken) { RG.resolveAwaken(g3c, 'pass'); continue; }
+    if (g3c.pendingEvent) { RG.resolveEvent(g3c, 0); continue; }
+    if (g3c.tacticChoices?.length && !g3c.tactic) { g3c.tactic = pick3(g3c.tacticChoices); continue; }
+    const log3c = G.takeAction(g3c, w3c.kind === 'training' ? 'batting' : null);
+    if (w3c.kind === 'match' && log3c?.results) {
+      log3c.results.forEach((r) => {
+        const top = r.box.us.pitchers.filter((p) => p.pitches > 0).sort((a, b) => b.pitches - a.pitches)[0];
+        if (top) usedStarters.add(top.id);
+      });
+    }
+  }
+  console.log(`  一整年下來，用過 ${usedStarters.size} 個不同的先發投手`
+    + `（要 > 1——疲勞夠高的話該讓別人上場，不會永遠同一個人）`);
 }
 
 head('宿敵對戰紀錄：同一個對手名字打滿 3 次才算宿敵');
