@@ -643,6 +643,35 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
   }
   console.log(`  開局學力 <30 的新生（樣本 ${weakSamples}）：第一次考試（開局那一刻）`
     + `被禁賽 ${stillBannedOnOpen} 個（要是 0，不然剛接手就沒得選）`);
+
+  // 停賽是「學力不夠」造成的，考完之後靠讀書把學力拉回安全等級，
+  // 就不該還掛著禁賽——不然會出現「畫面上是 A、C 卻還在停賽」的怪事
+  const pick6 = (a) => a[Math.floor(Math.random() * a.length)];
+  let staleFound = 0;
+  for (let trial = 0; trial < 20; trial += 1) {
+    const g6 = ST.createGame({
+      managerName: '停賽測試', schoolName: '停賽高校', prefectureId: 'aichi', numYears: 2,
+    });
+    g6.pendingDraft = null;
+    let guard6 = 0;
+    while (guard6 < 300) {
+      guard6 += 1;
+      const w6 = G.currentWeek(g6);
+      if (!w6) break;
+      if (g6.pendingDraft?.length) { RG.choosePerk(g6, pick6(g6.pendingDraft)); continue; }
+      if (g6.pendingTransfer) { RG.resolveTransfer(g6, 'warm'); continue; }
+      if (g6.pendingAlumniVisit) { RG.resolveAlumniVisit(g6, 'coach'); continue; }
+      if (g6.pendingAwaken) { RG.resolveAwaken(g6, 'pass'); continue; }
+      if (g6.pendingEvent) { RG.resolveEvent(g6, 0); continue; }
+      if (g6.tacticChoices?.length && !g6.tactic) { g6.tactic = pick6(g6.tacticChoices); continue; }
+      G.takeAction(g6, w6.kind === 'training' ? 'study' : null);
+      staleFound += (g6.examBanned || []).filter((id) => {
+        const p = g6.team.players.find((x) => x.id === id);
+        return p && ['S', 'A', 'B', 'C'].includes(A.grade(p.gakuryoku));
+      }).length;
+    }
+  }
+  console.log(`  20 局跑完，「學力其實已經追回 C 以上、卻還在停賽名單」的次數：${staleFound}（要是 0）`);
 }
 
 head('疲勞：打越多球越累，累了表現打折、更容易受傷，「休息」能大幅消除');

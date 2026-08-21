@@ -1185,4 +1185,19 @@ export function resolveExam(game, rng = Math.random) {
   return { failed: failed.map((p) => ({ name: p.name, gakuryoku: p.gakuryoku })) };
 }
 
+// 停賽是「學力不夠」造成的，考完之後如果靠讀書／事件把學力拉回安全範圍，
+// 就不該還掛著禁賽——不然會出現「畫面上明明是 A、C 卻還在停賽」這種
+// 看起來像壞掉的怪事。每週都檢查一次，跟停賽原因（學力）保持一致。
+const EXAM_SAFE_GRADES = new Set(['S', 'A', 'B', 'C']);
+
+/** 學力已經追回安全等級的人，直接解除停賽，不用等到下次考試 */
+export function refreshExamEligibility(game) {
+  if (!game.examBanned?.length) return;
+  game.examBanned = game.examBanned.filter((id) => {
+    const p = game.team.players.find((x) => x.id === id && !x.retired);
+    if (!p) return false;
+    return !EXAM_SAFE_GRADES.has(grade(p.gakuryoku));
+  });
+}
+
 export { clamp };

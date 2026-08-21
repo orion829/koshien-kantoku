@@ -34,6 +34,7 @@ import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
   pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
   rollAlumniVisit, resolveAlumniVisit, legacyPointsFor, buyUpgrade, upgradeCost, resolveExam,
+  refreshExamEligibility,
 } from './roguelike.js';
 
 export {
@@ -452,6 +453,8 @@ export function takeAction(game, actionId, rng = Math.random) {
   // 每過一週，養傷的人就好一點；疲勞也會消一點，選「休息」消更多
   log.returned = healWeek(game.team.players, mods.healSpeed);
   decayFatigue(active(game.team.players), actionId === 'rest');
+  // 讀書／事件把學力拉回安全等級的人，這裡就解除停賽，不用等到下次考試
+  refreshExamEligibility(game);
 
   step(game, rng);
   return log;
