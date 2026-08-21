@@ -1082,6 +1082,20 @@ table.bs .bs__avg { color: var(--muted); }
 table.bs td.hi { color: var(--accent); font-weight: 600; }
 table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 
+.cond {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 4px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.cond--great { color: #f0c34a; background: rgba(240, 195, 74, .14); }
+.cond--good { color: var(--green); background: rgba(111, 174, 122, .14); }
+.cond--bad { color: var(--accent); background: rgba(217, 138, 74, .14); }
+.cond--terrible { color: var(--danger); background: rgba(221, 122, 104, .14); }
+
 /* ---------- 精彩場面 ---------- */
 
 .hl { list-style: none; margin: 0; padding: 0; font-size: 12px; }

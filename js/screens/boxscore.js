@@ -45,6 +45,12 @@ function lineScore(r) {
     </table>`;
 }
 
+/** 今天的手感，給畫面看的小標籤——「普通」不特別顯示 */
+function conditionTag(us, id) {
+  const c = us.conditions?.[id];
+  return c ? `<span class="cond cond--${c.id}">${c.label}</span>` : '';
+}
+
 /** 我方打線 */
 function battingTable(us) {
   const rows = us.batters.map((b) => {
@@ -52,7 +58,7 @@ function battingTable(us) {
     return `
     <tr>
       <td class="bs__pos">${b.pos}</td>
-      <td class="bs__name" data-pid="${b.id}">${b.name}</td>
+      <td class="bs__name" data-pid="${b.id}">${b.name}${conditionTag(us, b.id)}</td>
       <td>${b.ab}</td>
       <td class="${b.h ? 'hi' : ''}">${b.h}</td>
       <td class="${b.hr ? 'hi' : ''}">${b.hr || '－'}</td>
@@ -79,7 +85,7 @@ function pitchingTable(us) {
     const line = pitchingLine(p);
     return `
     <tr>
-      <td class="bs__name" data-pid="${p.id}">${p.name}</td>
+      <td class="bs__name" data-pid="${p.id}">${p.name}${conditionTag(us, p.id)}</td>
       <td>${ip(p.outs)}</td>
       <td>${p.h}</td>
       <td class="${p.r ? '' : 'hi'}">${p.r}</td>

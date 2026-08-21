@@ -88,6 +88,9 @@ export function rollConditions(players, rng = Math.random) {
   return new Map(players.map((p) => [p.id, rollConditionTier(rng).mult]));
 }
 
+/** 倍率換回狀態等級（給畫面顯示用，「普通」不特別顯示） */
+const tierForMult = (mult) => CONDITION_TIERS.find((t) => t.mult === mult);
+
 // ── 上場陣容 ────────────────────────────────────────────
 
 /**
@@ -491,6 +494,13 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
 }
 
 function summarise(s, team) {
+  // 只挑出「普通」以外的狀態給畫面顯示——存檔要能 JSON 序列化，
+  // 所以換成單純的物件，不能直接存 Map
+  const conditions = {};
+  s.conditions.forEach((mult, id) => {
+    const tier = tierForMult(mult);
+    if (tier && tier.id !== 'normal') conditions[id] = { id: tier.id, label: tier.label };
+  });
   return {
     name: s.name,
     total: s.total,
@@ -500,5 +510,6 @@ function summarise(s, team) {
     batters: [...s.bat.values()],
     pitchers: [...s.pit.values()],
     players: team.order.map((o) => o.player),
+    conditions,
   };
 }
