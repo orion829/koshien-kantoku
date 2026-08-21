@@ -166,7 +166,49 @@ export function createPlayer({
     skills: makeSkills(main, talent, abilities, rng),
     // 職棒球探注目度：0〜100，打出好表現會累積，畢業時夠高就可能被選走
     scoutAttention: 0,
+    // 學力：0〜100，跟球技沒關係，是獨立抽的——書呆子強打者、四肢發達
+    // 頭腦簡單的王牌投手都可能出現。考不過期末考會被禁賽，見 roguelike.js
+    gakuryoku: clamp(Math.round(50 + gauss(rng) * 16), 5, 95),
+    // 生涯數據：畢業時拿來顯示戰績用，被選進職棒的人會寫進結算圖
+    career: {
+      bat: {
+        ab: 0, h: 0, hr: 0, rbi: 0, r: 0, bb: 0, k: 0, games: 0,
+      },
+      pit: {
+        outs: 0, h: 0, r: 0, bb: 0, k: 0, pitches: 0, games: 0,
+      },
+    },
   };
+}
+
+/** 累加一場比賽的生涯數據。bat／pit 是那場比賽的紀錄表，沒上場就不會有 */
+export function accumulateCareerStats(player, bat, pit) {
+  if (bat) {
+    const c = player.career.bat;
+    c.ab += bat.ab; c.h += bat.h; c.hr += bat.hr; c.rbi += bat.rbi;
+    c.r += bat.r; c.bb += bat.bb; c.k += bat.k; c.games += 1;
+  }
+  if (pit) {
+    const c = player.career.pit;
+    c.outs += pit.outs; c.h += pit.h; c.r += pit.r; c.bb += pit.bb;
+    c.k += pit.k; c.pitches += pit.pitches; c.games += 1;
+  }
+}
+
+/** 生涯數據換成一行看得懂的字：打者看打擊率／全壘打，投手看局數／防禦率 */
+export function careerLine(player) {
+  const { bat, pit } = player.career;
+  const parts = [];
+  if (bat.ab > 0) {
+    const avg = (bat.h / bat.ab).toFixed(3).replace(/^0/, '');
+    parts.push(`打擊率 ${avg}・${bat.hr} 轟・${bat.rbi} 打點`);
+  }
+  if (pit.outs > 0) {
+    const innings = (pit.outs / 3).toFixed(1);
+    const era = ((pit.r / pit.outs) * 27).toFixed(2);
+    parts.push(`投了 ${innings} 局・${pit.k} 三振・失分率 ${era}`);
+  }
+  return parts.length ? parts.join('・') : '沒有上場紀錄';
 }
 
 // ── 讀取用的輔助函式 ────────────────────────────────────

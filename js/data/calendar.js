@@ -85,7 +85,9 @@ export function buildYear(wins) {
       defaultPractice: true,
     }));
 
+  // 期末考：考不過的人這一輪大賽不能出賽（見 roguelike.js 第 9 節）
   plain('pretourn', '決定 20 人名單 ／ 抽籤', '6月底', 'transition');
+  w[w.length - 1].examBefore = true;
   plain('pretourn', '最後調整', '6月底', 'training');
 
   // ── 夏天 ────────────────────────────────────────────
@@ -103,6 +105,7 @@ export function buildYear(wins) {
   w[w.length - 1].retireSeniors = true;
   w[w.length - 1].draft = true;
   plain('handover', '選新隊長 ／ 重排守備位置', '9月初', 'transition');
+  w[w.length - 1].examBefore = true;
 
   matchPhase('autumn', '秋季縣大賽', AUTUMN_ROUNDS, '9月底', { alwaysPlayFirst: true }).forEach(add);
   matchPhase('autumnArea', '秋季地區大賽', AUTUMN_ROUNDS, '10月中').forEach(add);
@@ -122,6 +125,7 @@ export function buildYear(wins) {
 
   // ── 春天（春季甲子園） ──────────────────────────────
   plain('senbatsu', '春季甲子園選拔公布 ／ 畢業典禮', '3月初', 'transition');
+  w[w.length - 1].examBefore = true;
   matchPhase('senbatsu', '春季甲子園', roundNames(SENBATSU_WINS), '3月底').forEach(add);
 
   return w;

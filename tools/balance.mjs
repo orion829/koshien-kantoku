@@ -493,4 +493,95 @@ head('校務投資：升級真的有效果，不是擺著好看（每種升級�
     + `買到 Lv.3 overall ${maxUp.toFixed(1)}（要明顯更高，這是「學校變強」最直接的證據）`);
 }
 
+head('多少年拿冠軍：認真玩（有練、優先買升級）大概幾年拿到夏季甲子園冠軍');
+{
+  // 「認真玩」的假玩家：練習項目 8 種輪流練（不會偏廢投手或野手），
+  // 有點數就優先買「英才培育」「訓練設備」（長期複利最高），其他隨便買
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const menus = ['batting', 'power', 'fielding', 'throwing', 'running', 'pitching', 'breaking', 'physical'];
+  const priority = ['academy', 'facility', 'dorm', 'clinic', 'network', 'reputation'];
+
+  function simUntilChampion(maxYears, prefectureId) {
+    const g = ST.createGame({
+      managerName: '認真玩', schoolName: '認真高校', prefectureId, numYears: maxYears,
+    });
+    let guard = 0;
+    let trainCounter = 0;
+    while (g.cursor.year <= maxYears && guard < 30000) {
+      guard += 1;
+      const prog = g.progress[g.cursor.year - 1];
+      if (prog?.koshien?.champion) return g.cursor.year;
+
+      if (g.pendingDraft?.length) { RG.choosePerk(g, pick(g.pendingDraft)); continue; }
+      if (g.pendingTransfer) { RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet'); continue; }
+      if (g.pendingAlumniVisit) {
+        RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing');
+        continue;
+      }
+      if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
+      if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
+      if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick(g.tacticChoices); continue; }
+
+      const affordable = RG.UPGRADES.filter((u) => (g.legacyPoints || 0) >= RG.upgradeCost(g, u.id));
+      if (affordable.length) {
+        const byPriority = priority.map((id) => affordable.find((u) => u.id === id)).filter(Boolean);
+        RG.buyUpgrade(g, (byPriority[0] || affordable[0]).id);
+        continue;
+      }
+
+      const w = G.currentWeek(g);
+      if (w.kind === 'training') {
+        const menuActs = G.availableActions(g).filter((a) => a.kind === 'menu');
+        const wantMenu = menus[trainCounter % menus.length];
+        const act = menuActs.find((a) => a.id === wantMenu) || pick(menuActs);
+        trainCounter += 1;
+        G.takeAction(g, act.id);
+      } else {
+        G.takeAction(g, null);
+      }
+    }
+    return g.progress[g.cursor.year - 1]?.koshien?.champion ? g.cursor.year : null;
+  }
+
+  const tiers = [
+    ['簡單(贏5場)', 'tottori'], ['普通(贏6場)', 'aomori'],
+    ['困難(贏7場)', 'ibaraki'], ['地獄(贏8場)', 'aichi'],
+  ];
+  for (const [label, pref] of tiers) {
+    const N = 50; const maxYears = 35;
+    const years = [];
+    let never = 0;
+    for (let i = 0; i < N; i += 1) {
+      const y = simUntilChampion(maxYears, pref);
+      if (y === null) never += 1; else years.push(y);
+    }
+    years.sort((a, b) => a - b);
+    const avg = years.length ? (years.reduce((a, b) => a + b, 0) / years.length).toFixed(1) : '—';
+    console.log(`  ${label.padEnd(10)} 平均第 ${avg} 年拿冠軍`
+      + `（中位數第 ${years[Math.floor(years.length / 2)]} 年，${never}/${N} 局 ${maxYears} 年內沒拿到）`);
+  }
+  console.log('  ※ 目標：普通約第 10 年、地獄約第 15 年（見 game.js 的 OPPONENT 註解）');
+}
+
+head('學力與考試：學力越低越容易被禁賽，但保底不能把隊伍打到湊不出人');
+{
+  const N = 3000;
+  const players = Array.from({ length: N }, () => P.createPlayer({ gradeYear: 1, talent: 3 }));
+  const g = { team: { players } };
+  const { failed } = RG.resolveExam(g);
+  console.log(`  ${N} 人期末考：不及格 ${failed.length} 人（${((failed.length / N) * 100).toFixed(0)}%）`);
+
+  // 極端情況：學力全部設 0，看保底機制擋不擋得住
+  const weakPlayers = Array.from({ length: 20 }, () => {
+    const p = P.createPlayer({ gradeYear: 1, talent: 1 });
+    p.gakuryoku = 0;
+    return p;
+  });
+  const gw = { team: { players: weakPlayers } };
+  const rw = RG.resolveExam(gw);
+  const eligible = weakPlayers.length - rw.failed.length;
+  console.log(`  20 人全部學力 0（最壞情況）：還能出賽 ${eligible} 人`
+    + `（保底 ${RG.EXAM_MIN_ELIGIBLE} 人，要 >= ${R.MIN_PLAYERS}）`);
+}
+
 console.log('');

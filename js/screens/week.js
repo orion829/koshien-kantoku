@@ -2,12 +2,14 @@ import {
   currentWeek, availableActions, takeAction, teamStrength, buyUpgrade, upgradeCost,
 } from '../rules/game.js';
 import { moraleLabel, efficiency } from '../rules/morale.js';
-import { overallGrade } from '../rules/player.js';
+import { overallGrade, isPitcher } from '../rules/player.js';
 import { active } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
 import { weekGames, bindGameCards } from './boxscore.js';
 import { downloadSummary } from './summary.js';
-import { positionById } from '../data/abilities.js';
+import {
+  positionById, grade, skillById, GROWTH_TYPES, BATTER_STATS, PITCHER_STATS,
+} from '../data/abilities.js';
 import {
   fameOf, candidateHint, growthName,
 } from '../rules/scouting.js';
@@ -31,23 +33,45 @@ function moraleBox(game) {
     </div>`;
 }
 
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
 /**
- * 精簡版選手名單：不用切分頁就看得到，預設收起來，
- * 一個人只佔一小格（位置＋姓名＋整體評價），點開才會展開。
- * 完整版（能力細節、適性、特殊能力）還是要去「選手名單」分頁看。
+ * 主頁面的選手名單：直接全部攤開，不用點開、不用切分頁。
+ * 養傷中的人特別標出來（紅底、還要幾週），而且練習清單也會排除他們。
  */
 function compactRoster(game) {
   const players = active(game.team.players);
   if (!players.length) return '';
+  const banned = new Set(game.examBanned || []);
 
-  const chip = (p) => {
+  const row = (p) => {
     const pos = positionById(p.position)?.short || '';
     const hurt = isInjured(p);
+    const isBanned = banned.has(p.id);
+    const main = isPitcher(p) ? PITCHER_STATS : BATTER_STATS;
+    const chips = main.map((s) => {
+      const g = grade(p.abilities[s.id]);
+      return `<span class="mini__stat"><i>${s.name}</i><b class="g g--${g}">${g}</b></span>`;
+    }).join('');
+    const skills = p.skills.map((id) => skillById(id))
+      .map((s) => `<span class="skill skill--${s.good ? 'good' : 'bad'}">${s.name}</span>`)
+      .join('');
+    const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
+
     return `
-      <li class="mini${hurt ? ' mini--hurt' : ''}" title="${p.name}${hurt ? '（養傷中）' : ''}">
-        <span class="mini__pos">${pos}</span>
-        <span class="mini__name">${p.name}</span>
-        <span class="mini__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
+      <li class="mini${hurt || isBanned ? ' mini--hurt' : ''}">
+        <div class="mini__head">
+          <span class="mini__pos">${pos}</span>
+          <span class="mini__name">${p.name}</span>
+          <span class="growth growth--${gt.id}">${gt.name}</span>
+          <span class="mini__talent">${stars(p.talent)}</span>
+          <span class="mini__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
+          <span class="mini__stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>
+          ${hurt ? `<span class="mini__hurt-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
+          ${isBanned ? '<span class="mini__hurt-badge">📕 停賽中・學力不及格</span>' : ''}
+        </div>
+        <div class="mini__stats">${chips}</div>
+        ${skills ? `<div class="mini__skills">${skills}</div>` : ''}
       </li>`;
   };
 
@@ -57,13 +81,13 @@ function compactRoster(game) {
     return `
       <div class="mini-group">
         <span class="mini-group__label">${gy}年<em>${list.length}</em></span>
-        <ul class="minis">${list.map(chip).join('')}</ul>
+        <ul class="minis">${list.map(row).join('')}</ul>
       </div>`;
   }).join('');
 
   return `
-    <details class="roster-mini">
-      <summary>選手名單<span class="hint">（${players.length} 人，點開看全部）</span></summary>
+    <details class="roster-mini" open>
+      <summary>選手名單<span class="hint">（${players.length} 人）</span></summary>
       ${groups}
     </details>`;
 }
@@ -370,9 +394,16 @@ function lastResultBox(game) {
 
   if (l.retired) {
     const drafted = l.drafted || [];
+    const draftedIds = new Set(drafted.map((d) => d.id));
+    const careers = l.retireeCareers || [];
     return `<div class="last${drafted.length ? ' last--win' : ' last--plain'}">
       <span class="last__head">上一週：${l.event}</span>
       <p class="last__note">三年級 ${l.retired} 人退隊，已經從名單上移除。</p>
+      ${careers.length ? `<h4 class="bs__h">畢業生涯戰績</h4>
+        <ul class="grew">${careers.map((c) => `
+          <li><b>${c.name}</b> ${positionById(c.position)?.short || ''}
+            ${draftedIds.has(c.id) ? '<span class="superstar-tag">職棒選秀</span>' : ''}
+            <span class="muted">${c.line}</span></li>`).join('')}</ul>` : ''}
       ${drafted.length ? `<h4 class="bs__h">職棒選秀會上被選走了！</h4>
         <ul class="grew">${drafted.map((d) => `
           <li><b>${d.name}</b> ${positionById(d.position)?.short || ''}
@@ -382,6 +413,18 @@ function lastResultBox(game) {
         可以拿去買永久升級。</p>` : ''}
       ${l.joined ? `<p class="last__note">人數不夠 9 個，
         校內有 ${l.joined} 個同學來入部（都很弱）。</p>` : ''}
+    </div>`;
+  }
+
+  if (l.examResult) {
+    const failed = l.examResult.failed || [];
+    return `<div class="last${failed.length ? ' last--lose' : ' last--win'}">
+      <span class="last__head">上一週：${l.event}</span>
+      ${failed.length ? `<p class="last__note">期末考沒過 <b>${failed.length}</b> 人，
+        下一輪大賽不能出賽（下次考試前都是這樣）。</p>
+        <ul class="grew">${failed.map((f) => `
+          <li><b>${f.name}</b><span class="muted">學力 ${f.gakuryoku}</span></li>`).join('')}</ul>`
+    : '<p class="last__note">全隊都過關了，大賽可以全員出賽。</p>'}
     </div>`;
   }
 
@@ -430,6 +473,21 @@ function injuryList(game) {
       <span class="inj__weeks">還要 ${p.injury.weeks} 週</span>
     </li>`).join('');
   return `<h3 class="sec">養傷中<span class="hint">（不能上場也不會練習）</span></h3>
+    <ul class="injs">${items}</ul>`;
+}
+
+/** 現在有誰因為期末考沒過不能出賽 */
+function examBanList(game) {
+  const banned = new Set(game.examBanned || []);
+  if (!banned.size) return '';
+  const list = active(game.team.players).filter((p) => banned.has(p.id));
+  if (!list.length) return '';
+  const items = list.map((p) => `
+    <li class="inj inj--medium">
+      <b>${p.name}</b> 學力不及格
+      <span class="inj__weeks">下次考試前不能出賽</span>
+    </li>`).join('');
+  return `<h3 class="sec">停賽中<span class="hint">（期末考沒過，練習不受影響）</span></h3>
     <ul class="injs">${items}</ul>`;
 }
 
@@ -518,6 +576,7 @@ export function renderWeek(root, game, onChange) {
     ${body}
 
     ${injuryList(game)}
+    ${examBanList(game)}
 
     <h3 class="sec">最近發生的事</h3>
     ${logList(game)}`;

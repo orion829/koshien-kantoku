@@ -14,7 +14,7 @@ import {
 } from './training.js';
 import { efficiency, moraleLabel, advance, PRACTICE_FLOOR } from './morale.js';
 import {
-  overall, isPitcher, createPlayer, boostPotential,
+  overall, isPitcher, createPlayer, boostPotential, accumulateCareerStats, careerLine,
 } from './player.js';
 import { generateOpponent, buildLineup, playMatch } from './match.js';
 import {
@@ -30,7 +30,7 @@ import {
 import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
   pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
-  rollAlumniVisit, resolveAlumniVisit, legacyPointsFor, buyUpgrade, upgradeCost,
+  rollAlumniVisit, resolveAlumniVisit, legacyPointsFor, buyUpgrade, upgradeCost, resolveExam,
 } from './roguelike.js';
 
 export {
@@ -134,14 +134,14 @@ export function teamStrength(all) {
  * base 是第一輪的對手，step 是每贏一場對手變強多少。
  *
  * ⚠️ 這整段是暫時的。真的比賽模擬做好之後要換掉。
- * 現在的目標是讓「前期很難」：接手的第一年幾乎打不進甲子園，
- * 要靠好幾年的練習和傳承點數升級，才會慢慢有機會——這樣「學校
- * 越帶越強」才有感覺。這個對手強度不會因為玩家帶了幾年而變，
- * 所以只要玩家有在練、有在買升級，會自然而然越打越輕鬆。
+ * 目標：認真玩（有練、有買校務投資升級）拿到夏季甲子園冠軍大概要
+ * 　　　普通難度（贏 6 場）第 10 年左右、地獄難度（贏 8 場）第 15 年左右。
+ * 這個對手強度不會因為玩家帶了幾年而變，所以只要有在練、有在買升級，
+ * 會自然而然越打越輕鬆——用 tools/balance.mjs 的「多少年拿冠軍」驗證過。
  */
 const OPPONENT = {
-  regional: { base: 42, step: 6 },
-  koshien: { base: 60, step: 4 },
+  regional: { base: 42, step: 3.5 },
+  koshien: { base: 52, step: 3 },
   autumn: { base: 36, step: 5 },
   autumnArea: { base: 50, step: 5 },
   senbatsu: { base: 58, step: 4 },
@@ -150,7 +150,7 @@ const OPPONENT = {
 function opponentStrength(phase, roundIndex, wins) {
   const o = OPPONENT[phase] || { base: 40, step: 4 };
   // 激戰區的對手比較強
-  const local = phase === 'regional' ? (wins - 6) * 3 : 0;
+  const local = phase === 'regional' ? (wins - 6) * 0.5 : 0;
   return o.base + local + roundIndex * o.step;
 }
 
@@ -187,7 +187,9 @@ export function playWeek(game, rng = Math.random) {
     const opp = generateOpponent(theirs, rng);
 
     // 一週投超過 500 球的人不能再投，但還是要上場打擊（真實規則）
-    const ours = healthy(active(game.team.players));
+    // 期末考沒過的人也不能出賽，直到下次考試重新算
+    const banned = new Set(game.examBanned || []);
+    const ours = healthy(active(game.team.players)).filter((p) => !banned.has(p.id));
     const cannotPitch = ours
       .filter((p) => (pitchedThisWeek.get(p.id) || 0) >= WEEKLY_PITCH_LIMIT)
       .map((p) => p.id);
@@ -267,6 +269,7 @@ function applyMatchOutcome(game, m, rng, mods = null, phase = null) {
     const total = Object.values(gains).reduce((a, b) => a + b, 0);
     if (total > 0.05) grew.push({ name: p.name, gains, total });
     scoutGainFromMatch(p, bat.get(id), pit.get(id), phase);
+    accumulateCareerStats(p, bat.get(id), pit.get(id));
 
     const pitches = pit.get(id)?.pitches || 0;
     if (rng() < matchInjuryChance(p, pitches) * (mods?.matchInjury ?? 1)) {
@@ -357,6 +360,9 @@ export function takeAction(game, actionId, rng = Math.random) {
       game.team.startersGraduated = true;
       const { count, retirees } = retireSeniors(game.team.players);
       log.retired = count;
+      log.retireeCareers = retirees.map((p) => ({
+        id: p.id, name: p.name, position: p.position, line: careerLine(p),
+      }));
       log.drafted = checkDraft(game, retirees, rng);
       log.joined = fillToMinimum(game, rng);
       // 這一年的戰績換成傳承點數，可以拿去買永久升級——這是「學校
@@ -367,6 +373,10 @@ export function takeAction(game, actionId, rng = Math.random) {
       // 點數是這一步才算出來的，所以投資面板要留到下一畫面才顯示，
       // 不然玩家在這一步看到的還是「還沒加上今年」的舊餘額
       game.pendingInvest = true;
+    }
+    if (w.examBefore) {
+      const { failed } = resolveExam(game, rng);
+      log.examResult = { failed };
     }
   }
 
@@ -413,6 +423,7 @@ function checkDraft(game, retirees, rng) {
       overall: overall(p),
       year: game.cursor.year,
       attention: Math.round(p.scoutAttention),
+      career: careerLine(p),
     };
     game.proAlumni = [...(game.proAlumni || []), rec];
     drafted.push(rec);

@@ -1,6 +1,6 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成八種：
+// 這個檔案放「每一局都不一樣」的東西。分成九種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
 //   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
@@ -12,6 +12,7 @@
 //   7. 學長探班 打得夠好被職棒選走的畢業生，偶爾回來幫學校一把
 //   8. 校務投資 每年戰績換傳承點數，拿去買永久升級——
 //             這是「學校越帶越強」的主要來源，球員換血也不會消失
+//   9. 學力與考試 夏／秋／春各有一次期末考，考不過那一輪大賽不能出賽
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
@@ -200,6 +201,17 @@ function bump(list, stat, amount) {
     const cap = p.potential?.[stat] ?? MAX_ABILITY;
     if (p.abilities[stat] >= cap) return;
     p.abilities[stat] = Math.min(cap, p.abilities[stat] + amount);
+    n += 1;
+  });
+  return n;
+}
+
+/** 隨機挑幾個人，學力 +x（上限 100，跟球技上限沒關係） */
+function bumpGak(list, amount) {
+  let n = 0;
+  list.forEach((p) => {
+    if (p.gakuryoku >= 100) return;
+    p.gakuryoku = Math.min(100, p.gakuryoku + amount);
     n += 1;
   });
   return n;
@@ -592,6 +604,54 @@ export const EVENTS = [
         effect: (game) => {
           game.weekBoost = { gain: 1.05, injury: 1 };
           return '排隊排一下就結束了，剩下的時間拿去練球。';
+        },
+      },
+    ],
+  },
+  {
+    id: 'homework',
+    title: '作業寫不完',
+    text: '明天要交的作業，好幾個人都還沒動筆。',
+    options: [
+      {
+        label: '留下來一起寫',
+        hint: '4 個人的學力 +5，但這週成長打折',
+        effect: (game, rng) => {
+          const n = bumpGak(someone(game, 4, rng), 5);
+          game.weekBoost = { gain: 0.9, injury: 1 };
+          return `留到晚上九點才寫完。${n} 個人的學力進步了。`;
+        },
+      },
+      {
+        label: '練球優先，作業自己想辦法',
+        hint: '這週成長 +8%',
+        effect: (game) => {
+          game.weekBoost = { gain: 1.08, injury: 1 };
+          return '你說：「先練球，作業回家自己解決。」';
+        },
+      },
+    ],
+  },
+  {
+    id: 'tutor',
+    title: '家長會請了家教',
+    text: '有家長擔心大家的成績，自掏腰包請了一位老師來惡補。',
+    options: [
+      {
+        label: '全隊一起上課',
+        hint: '全隊學力 +3，這週沒練到球',
+        effect: (game) => {
+          const n = bumpGak(canPlay(game), 3);
+          game.weekBoost = { gain: 0.7, injury: 1 };
+          return `補了一整個下午的課。${n} 個人的學力進步了。`;
+        },
+      },
+      {
+        label: '婉拒，練球優先',
+        hint: '士氣變好',
+        effect: (game) => {
+          cheerUp(game, 2);
+          return '大家聽到不用上課都鬆了一口氣，練球特別有精神。';
         },
       },
     ],
@@ -1081,6 +1141,41 @@ export function legacyPointsFor(yearProgress, draftedCount = 0) {
   if (p.senbatsu?.champion) pts += LEGACY_POINTS.senbatsuChampion;
   pts += draftedCount * 3;
   return pts;
+}
+
+// ── 9. 學力與考試 ───────────────────────────────────────
+//
+// 夏／秋／春的大賽開打前各有一次期末考（跟真的日本學校學期對得上）。
+// 學力越高越容易過，考不過的人下一輪大賽不能出賽，直到下次考試重考。
+// 保底：就算全隊考爛，也一定留 EXAM_MIN_ELIGIBLE 個人能上場，
+// 不然球隊會因為一次爛考試直接湊不出 9 人開不成賽。
+
+export const EXAM_MIN_ELIGIBLE = 12;
+
+/** 學力換成及格機率。50 分（平均）大概 75%，20 分很危險，80 分幾乎穩過 */
+const examPassChance = (p) => clamp(0.3 + (p.gakuryoku / 100) * 0.9, 0.1, 0.97);
+
+/**
+ * 考期末考。回傳 { failed: [名字...] } 給畫面顯示，
+ * game.examBanned 存不能出賽的球員 id，下次考試會整批重算（不會一路禁到畢業）。
+ */
+export function resolveExam(game, rng = Math.random) {
+  const players = active(game.team.players);
+  const passed = [];
+  const failed = [];
+  players.forEach((p) => {
+    if (rng() < examPassChance(p)) passed.push(p); else failed.push(p);
+  });
+
+  // 保底：學力最高的那幾個「補考」過，不會真的把隊伍打到湊不出人
+  failed.sort((a, b) => b.gakuryoku - a.gakuryoku);
+  const floor = Math.min(EXAM_MIN_ELIGIBLE, players.length);
+  while (passed.length < floor && failed.length) {
+    passed.push(failed.shift());
+  }
+
+  game.examBanned = failed.map((p) => p.id);
+  return { failed: failed.map((p) => ({ name: p.name, gakuryoku: p.gakuryoku })) };
 }
 
 export { clamp };

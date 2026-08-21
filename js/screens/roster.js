@@ -2,15 +2,16 @@ import {
   BATTER_STATS, PITCHER_STATS, POSITIONS, positionById, grade, skillById, GROWTH_TYPES,
 } from '../data/abilities.js';
 import {
-  overall, overallGrade, isPitcher, playerVelocity, fieldingAt,
+  overall, overallGrade, isPitcher, playerVelocity, fieldingAt, careerLine,
 } from '../rules/player.js';
 import { rosterSummary, ROSTER_LIMIT, MATCH_ROSTER, active, matchRoster } from '../rules/roster.js';
+import { isInjured } from '../rules/injury.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const gradeYearLabel = (n) => `${n}年`;
 
 /** 一列球員（收合狀態） */
-function playerRow(p, registered) {
+function playerRow(p, registered, examBanned) {
   const pos = positionById(p.position);
   const main = isPitcher(p) ? PITCHER_STATS : BATTER_STATS;
   const chips = main
@@ -25,9 +26,11 @@ function playerRow(p, registered) {
     .join('');
 
   const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
+  const hurt = isInjured(p);
+  const banned = examBanned?.has(p.id);
 
   return `
-    <li class="player" data-player="${p.id}">
+    <li class="player${hurt || banned ? ' player--hurt' : ''}" data-player="${p.id}">
       <button type="button" class="player__head">
         <span class="player__year y${p.gradeYear}">${gradeYearLabel(p.gradeYear)}</span>
         <span class="player__pos">${pos.short}</span>
@@ -37,7 +40,11 @@ function playerRow(p, registered) {
         <span class="player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
       </button>
       ${registered && !registered.has(p.id) ? '<span class="bench">板凳</span>' : ''}
-      <div class="player__stats">${chips}</div>
+      ${hurt ? `<span class="status-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
+      ${banned ? '<span class="status-badge">📕 停賽中・學力不及格</span>' : ''}
+      <div class="player__stats">${chips}
+        <span class="stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>
+      </div>
       ${skills ? `<div class="player__skills">${skills}</div>` : ''}
       <div class="player__detail" hidden></div>
     </li>`;
@@ -95,7 +102,9 @@ function playerDetail(p) {
     <h4>特殊能力</h4>
     ${skills ? `<ul class="skill-lines">${skills}</ul>` : '<p class="muted">沒有特殊能力。</p>'}
     <p class="muted">${p.throws === 'L' ? '左投' : '右投'}${p.bats === 'L' ? '左打' : '右打'}
-      ・整體評價 ${overall(p)}</p>`;
+      ・整體評價 ${overall(p)}
+      ・學力 <span class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</span></p>
+    <p class="muted">生涯戰績：${careerLine(p)}</p>`;
 }
 
 export function renderRoster(root, game) {
@@ -107,6 +116,7 @@ export function renderRoster(root, game) {
   // 現在如果要比賽，這 20 個人會被登錄
   const registered = new Set(matchRoster(players.filter((p) => !p.injury || p.injury.weeks <= 0))
     .map((p) => p.id));
+  const examBanned = new Set(game.examBanned || []);
 
   const groups = [3, 2, 1].map((gy) => {
     const list = players.filter((p) => p.gradeYear === gy);
@@ -118,7 +128,7 @@ export function renderRoster(root, game) {
           <span class="grade-group__count">${list.length} 人</span>
           ${gy === 3 ? '<span class="warn">八月退隊</span>' : ''}
         </h3>
-        <ul class="players">${list.map((p) => playerRow(p, registered)).join('')}</ul>
+        <ul class="players">${list.map((p) => playerRow(p, registered, examBanned)).join('')}</ul>
       </section>`;
   }).join('');
 

@@ -95,7 +95,7 @@ js/
     roster.js          你接手的那支隊伍
     training.js        練習項目與成長
     game.js            遊戲主迴圈
-    roguelike.js       傳統、突發事件、作戰、對手特色、轉學生、能力覺醒、學長探班、校務投資
+    roguelike.js       傳統、突發事件、作戰、對手特色、轉學生、能力覺醒、學長探班、校務投資、學力考試
     match.js           比賽模擬
     injury.js          受傷與養傷
     scouting.js        招生

@@ -113,7 +113,12 @@ export function buildSummarySVG(game) {
       text(pad + 90, y + 10, `${pos}　第 ${a.year} 年畢業　${stars}　注目度 ${a.attention}`, {
         size: 11.5, color: COLORS.muted,
       });
-      y += 21;
+      y += 18;
+      if (a.career) {
+        text(pad + 14, y + 10, `高中生涯：${a.career}`, { size: 10.5, color: COLORS.muted });
+        y += 16;
+      }
+      y += 5;
     });
   }
 
