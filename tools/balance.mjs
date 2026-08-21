@@ -561,7 +561,7 @@ head('多少年拿冠軍：認真玩（有練、優先買升級）大概幾年�
     console.log(`  ${label.padEnd(10)} 平均第 ${avg} 年拿冠軍`
       + `（中位數第 ${years[Math.floor(years.length / 2)]} 年，${never}/${N} 局 ${maxYears} 年內沒拿到）`);
   }
-  console.log('  ※ 目標：普通約第 10 年、地獄約第 15 年（見 game.js 的 OPPONENT 註解）');
+  console.log('  ※ 目標：普通約第 13 年、地獄約第 16 年（見 game.js 的 OPPONENT 註解）');
 }
 
 head('學力與考試：學力越低越容易被禁賽，但保底不能把隊伍打到湊不出人');
@@ -716,6 +716,46 @@ head('宿敵對戰紀錄：同一個對手名字打滿 3 次才算宿敵');
     + `第 3 次 isRival=${r3.isRival}（門檻 ${G.RIVAL_THRESHOLD}，要在第 3 次變 true）`);
   console.log(`  最終戰績：${g4.rivalRecords['龍谷學園'].wins}勝${g4.rivalRecords['龍谷學園'].losses}敗`
     + `（要是 2 勝 1 敗）`);
+}
+
+head('職棒選秀：野手不該比投手難拿注目度，選走的人天賦都要是滿星');
+{
+  const pick7 = (a) => a[Math.floor(Math.random() * a.length)];
+  const posCounts = {};
+  const talentCounts = {};
+  let totalDrafted = 0;
+  for (let trial = 0; trial < 15; trial += 1) {
+    const g7 = ST.createGame({
+      managerName: '選秀測試', schoolName: '選秀高校', prefectureId: 'tottori', numYears: 10,
+    });
+    g7.pendingDraft = null;
+    let guard7 = 0;
+    while (guard7 < 900) {
+      guard7 += 1;
+      const w7 = G.currentWeek(g7);
+      if (!w7) break;
+      if (g7.pendingDraft?.length) { RG.choosePerk(g7, pick7(g7.pendingDraft)); continue; }
+      if (g7.pendingTransfer) { RG.resolveTransfer(g7, 'warm'); continue; }
+      if (g7.pendingAlumniVisit) { RG.resolveAlumniVisit(g7, 'coach'); continue; }
+      if (g7.pendingAwaken) { RG.resolveAwaken(g7, 'pass'); continue; }
+      if (g7.pendingEvent) { RG.resolveEvent(g7, 0); continue; }
+      if (g7.tacticChoices?.length && !g7.tactic) { g7.tactic = pick7(g7.tacticChoices); continue; }
+      const acts7 = G.availableActions(g7).filter((a) => !a.todo);
+      G.takeAction(g7, w7.kind === 'training' ? pick7(acts7).id : null);
+    }
+    (g7.proAlumni || []).forEach((a) => {
+      posCounts[a.position] = (posCounts[a.position] || 0) + 1;
+      talentCounts[a.talent] = (talentCounts[a.talent] || 0) + 1;
+      totalDrafted += 1;
+    });
+  }
+  const pitcherShare = totalDrafted ? ((posCounts.P || 0) / totalDrafted) * 100 : 0;
+  const nonFiveStar = Object.keys(talentCounts).filter((t) => Number(t) < 5)
+    .reduce((n, t) => n + talentCounts[t], 0);
+  console.log(`  15 局 × 10 年，選秀共 ${totalDrafted} 人，投手佔 ${pitcherShare.toFixed(0)}%`
+    + `（投手在隊上大約佔 26%，不該偏太多）`);
+  console.log(`  天賦分布：${JSON.stringify(talentCounts)}　`
+    + `非滿星被選走 ${nonFiveStar} 人（要是 0，職棒只選五星）`);
 }
 
 console.log('');

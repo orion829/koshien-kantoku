@@ -149,7 +149,9 @@ export const SCOUT_STAGE_WEIGHT = {
 export function scoutGainFromMatch(player, bat, pit, phase) {
   const weight = SCOUT_STAGE_WEIGHT[phase] ?? 1;
   let raw = 0;
-  if (bat) raw += bat.h * 1.4 + bat.hr * 4 + bat.rbi * 0.8;
+  // 野手一場比賽的打數本來就比投手的球數少很多，係數調高一截，
+  // 不然投手光靠「上場整場」就會把注目度衝得比野手快好幾倍
+  if (bat) raw += bat.h * 3.5 + bat.hr * 10 + bat.rbi * 2.2;
   if (pit) {
     const innings = pit.outs / 3;
     raw += innings * 1.1 + pit.k * 0.7 - pit.bb * 0.4 - pit.r * 0.9;

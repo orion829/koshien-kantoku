@@ -146,13 +146,13 @@ export function teamStrength(all) {
  *
  * ⚠️ 這整段是暫時的。真的比賽模擬做好之後要換掉。
  * 目標：認真玩（有練、有買校務投資升級）拿到夏季甲子園冠軍大概要
- * 　　　普通難度（贏 6 場）第 10 年左右、地獄難度（贏 8 場）第 15 年左右。
+ * 　　　普通難度（贏 6 場）第 13 年左右、地獄難度（贏 8 場）第 16 年左右。
  * 這個對手強度不會因為玩家帶了幾年而變，所以只要有在練、有在買升級，
  * 會自然而然越打越輕鬆——用 tools/balance.mjs 的「多少年拿冠軍」驗證過。
  */
 const OPPONENT = {
-  regional: { base: 42, step: 3.5 },
-  koshien: { base: 47, step: 3 },
+  regional: { base: 42, step: 2.5 },
+  koshien: { base: 53, step: 3 },
   autumn: { base: 36, step: 5 },
   autumnArea: { base: 50, step: 5 },
   senbatsu: { base: 58, step: 4 },
@@ -161,7 +161,7 @@ const OPPONENT = {
 function opponentStrength(phase, roundIndex, wins) {
   const o = OPPONENT[phase] || { base: 40, step: 4 };
   // 激戰區的對手比較強
-  const local = phase === 'regional' ? (wins - 6) * 0.5 : 0;
+  const local = phase === 'regional' ? (wins - 6) * 0.4 : 0;
   return o.base + local + roundIndex * o.step;
 }
 
@@ -467,6 +467,8 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
  * 到 100 的話大約 95% 會被選走，不是保證，選秀本來就有意外。
  */
 const DRAFT_THRESHOLD = 40;
+/** 職棒是萬中選一的存在，天賦沒到滿星，注目度再高也不會被選 */
+const DRAFT_MIN_TALENT = 5;
 
 /**
  * 三年級退隊時檢查每個人的職棒球探注目度，夠高的話可能被選走。
@@ -475,6 +477,7 @@ const DRAFT_THRESHOLD = 40;
 function checkDraft(game, retirees, rng) {
   const drafted = [];
   retirees.forEach((p) => {
+    if (p.talent < DRAFT_MIN_TALENT) return;
     const chance = clamp((p.scoutAttention - DRAFT_THRESHOLD) / 60, 0, 0.95);
     if (chance <= 0 || rng() >= chance) return;
     const rec = {
