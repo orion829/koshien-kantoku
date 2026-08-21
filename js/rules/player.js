@@ -166,6 +166,8 @@ export function createPlayer({
     skills: makeSkills(main, talent, abilities, rng),
     // 職棒球探注目度：0〜100，打出好表現會累積，畢業時夠高就可能被選走
     scoutAttention: 0,
+    // 疲勞：0〜100，打比賽會累積，每週自動消一點。見 rules/fatigue.js
+    fatigue: 0,
     // 學力：0〜100，跟球技沒關係，是獨立抽的——書呆子強打者、四肢發達
     // 頭腦簡單的王牌投手都可能出現。考不過期末考會被禁賽，見 roguelike.js
     gakuryoku: clamp(Math.round(50 + gauss(rng) * 16), 5, 95),

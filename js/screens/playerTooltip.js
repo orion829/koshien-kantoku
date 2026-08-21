@@ -10,6 +10,7 @@ import {
 } from '../data/abilities.js';
 import { overallGrade, isPitcher } from '../rules/player.js';
 import { isInjured } from '../rules/injury.js';
+import { fatigueLabel } from '../rules/fatigue.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -46,6 +47,7 @@ function tipHTML(p, game) {
     <div class="player-tip__line">
       ${p.gradeYear}年級・${gt.name}・${stars(p.talent)}
       ・學力 <span class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</span>
+      ・疲勞 ${fatigueLabel(p.fatigue)}
       ${p.retired ? '<span class="player-tip__ret">已退隊</span>' : ''}
     </div>
     <div class="player-tip__stats">${chips}</div>

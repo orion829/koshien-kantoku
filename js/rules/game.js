@@ -21,6 +21,9 @@ import {
   healthy, isInjured, injure, healWeek, matchInjuryChance, trainInjuryChance,
 } from './injury.js';
 import {
+  addMatchFatigue, decayFatigue, fatigueInjuryMult, applyFatiguePenalty, restoreAbilities,
+} from './fatigue.js';
+import {
   advanceYear, addRecruits, active, retireSeniors,
   MIN_PLAYERS, ROSTER_LIMIT, matchRoster,
 } from './roster.js';
@@ -83,7 +86,7 @@ export const isRunOver = (game) => currentWeek(game) === null;
 
 export const SPECIAL_ACTIONS = [
   { id: 'practice', name: '練習賽', desc: '不長能力，但可以把士氣計時器往回撥 4 週' },
-  { id: 'rest', name: '休息', desc: '消疲勞（疲勞系統還沒做）', todo: true },
+  { id: 'rest', name: '休息', desc: '不練球，但能大幅消除全隊疲勞' },
   {
     id: 'study', name: '讀書', desc: '不練球，但全隊學力 +6（越低分進步越快）',
   },
@@ -202,17 +205,28 @@ export function playWeek(game, rng = Math.random) {
       .map((p) => p.id);
     // 一場比賽只能登錄 20 人（真實規則），從能上場的人裡面挑
     const registered = matchRoster(ours);
-    const mine = buildLineup(registered, { cannotPitch });
+    // 玩家自己排的先發（可能沒設定，沒設定就照原本的自動邏輯）；
+    // 投手輪值一週最多 3 場，第幾場就用輪值的第幾個人
+    const custom = game.customLineup;
+    const pitcherId = custom?.pitchers?.length
+      ? custom.pitchers[i % custom.pitchers.length] : null;
+    const mine = buildLineup(registered, {
+      cannotPitch, pitcherId, customOrder: custom?.order || null,
+    });
     const theirLineup = buildLineup(opp.players);
 
     // 甲子園本戰沒有提前結束，地區大賽和秋季大賽有
     const mercy = !['koshien', 'senbatsu'].includes(w.phase);
+    // 疲勞的人這場比賽能力暫時打折，打完馬上換回來——
+    // 不然折扣會被 applyMatchOutcome 的成長永久疊進能力值裡
+    const fatigueSnapshot = applyFatiguePenalty(ours);
     const m = playMatch(
       { name: game.school.name, ...mine, mods },
       { name: opp.name, ...theirLineup, mods: opp.mods },
       rng,
       { mercy },
     );
+    restoreAbilities(ours, fatigueSnapshot);
 
     // 記投球數
     m.home.pitchers.forEach((p) => {
@@ -221,6 +235,7 @@ export function playWeek(game, rng = Math.random) {
 
     const won = m.winner === 'home';
     const growth = applyMatchOutcome(game, m, rng, mods, w.phase);
+    const rival = recordRivalResult(game, opp.name, won);
 
     results.push({
       round: w.games[i],
@@ -234,6 +249,7 @@ export function playWeek(game, rng = Math.random) {
       box: { us: m.home, them: m.away },
       plays: m.plays,
       growth,
+      rival,
     });
 
     if (!won) { out = true; break; }
@@ -253,6 +269,24 @@ export function playWeek(game, rng = Math.random) {
   game.tactic = null;
   game.tacticChoices = null;
   return results;
+}
+
+/** 對戰紀錄裡，同一個名字打過幾次才算「宿敵」 */
+export const RIVAL_THRESHOLD = 3;
+
+/**
+ * 記一筆對戰結果，回傳到目前為止（含這一場）跟這支對手的生涯戰績。
+ * 對手是每場重新生成的，「同一個名字」就代表同一支宿敵學校。
+ */
+export function recordRivalResult(game, name, won) {
+  game.rivalRecords = game.rivalRecords || {};
+  const rec = game.rivalRecords[name] || { wins: 0, losses: 0 };
+  if (won) rec.wins += 1; else rec.losses += 1;
+  game.rivalRecords[name] = rec;
+  const meetings = rec.wins + rec.losses;
+  return {
+    name, wins: rec.wins, losses: rec.losses, meetings, isRival: meetings >= RIVAL_THRESHOLD,
+  };
 }
 
 /**
@@ -279,9 +313,13 @@ function applyMatchOutcome(game, m, rng, mods = null, phase = null) {
     accumulateCareerStats(p, bat.get(id), pit.get(id));
 
     const pitches = pit.get(id)?.pitches || 0;
-    if (rng() < matchInjuryChance(p, pitches) * (mods?.matchInjury ?? 1)) {
+    // 累的時候更容易受傷，投球數的加成和疲勞的加成用乘的
+    const injChance = matchInjuryChance(p, pitches)
+      * (mods?.matchInjury ?? 1) * fatigueInjuryMult(p.fatigue);
+    if (rng() < injChance) {
       injured.push({ ...injure(p, rng), pitches });
     }
+    addMatchFatigue(p, pitches);
   });
 
   return { grew, injured };
@@ -409,8 +447,9 @@ export function takeAction(game, actionId, rng = Math.random) {
     game.scouting = null;
   }
 
-  // 每過一週，養傷的人就好一點
+  // 每過一週，養傷的人就好一點；疲勞也會消一點，選「休息」消更多
   log.returned = healWeek(game.team.players, mods.healSpeed);
+  decayFatigue(active(game.team.players), actionId === 'rest');
 
   step(game, rng);
   return log;

@@ -5,6 +5,7 @@ import { moraleLabel, efficiency } from '../rules/morale.js';
 import { overallGrade, isPitcher } from '../rules/player.js';
 import { active } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
+import { fatigueLabel } from '../rules/fatigue.js';
 import { weekGames, bindGameCards } from './boxscore.js';
 import { downloadSummary } from './summary.js';
 import {
@@ -67,6 +68,7 @@ function compactRoster(game) {
           <span class="mini__talent">${stars(p.talent)}</span>
           <span class="mini__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
           <span class="mini__stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>
+          <span class="mini__stat"><i>疲勞</i><b>${fatigueLabel(p.fatigue)}</b></span>
           ${hurt ? `<span class="mini__hurt-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
           ${isBanned ? '<span class="mini__hurt-badge">📕 停賽中・學力不及格</span>' : ''}
         </div>

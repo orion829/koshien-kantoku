@@ -1328,6 +1328,8 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 .trait b { font-weight: 500; color: var(--muted); }
 .trait em { font-style: normal; font-size: 11px; color: var(--muted); }
 .trait--ours { border-left-color: var(--green); }
+.trait--rival { border-left-color: var(--accent); }
+.trait--rival b { color: var(--accent); }
 
 .log--event .log__body { color: var(--blue); }
 
@@ -1807,4 +1809,71 @@ table.bs td.warn-num { color: var(--danger); font-weight: 600; }
   color: var(--danger);
   font-weight: 700;
   margin-top: 6px;
+}
+
+/* ---------- 先發名單 ---------- */
+
+.lineup-rows {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lineup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.lineup-row--bad { border-color: var(--danger); }
+
+.lineup-row__num {
+  flex: 0 0 44px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lineup-row select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.lineup-row select:first-of-type { flex: 0 0 4.2em; }
+.lineup-row select:last-of-type { flex: 1; min-width: 0; }
+
+.lineup-row__move {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+}
+
+.lineup-row__move button {
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.lineup-row__move button:disabled { opacity: .3; cursor: default; }
+
+.lineup-warn { color: var(--danger); }
+
+@media (max-width: 620px) {
+  .lineup-row { flex-wrap: wrap; }
+  .lineup-row select:last-of-type { flex: 1 1 100%; }
 }

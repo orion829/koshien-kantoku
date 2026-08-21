@@ -128,14 +128,17 @@ function growthBlock(r) {
     ${hurt ? `<h4 class="bs__h bs__h--bad">受傷</h4><ul class="injs">${hurt}</ul>` : ''}`;
 }
 
-/** 對手的特色 ＋ 我方這場用的作戰 */
+/** 對手的特色 ＋ 我方這場用的作戰 ＋ 宿敵對戰紀錄 */
 function matchup(r) {
   const t = r.trait
     ? `<span class="trait"><b>${r.opponent}</b>${r.trait.name}
         <em>${r.trait.desc}</em></span>` : '';
   const tac = r.tacticName
     ? `<span class="trait trait--ours"><b>我方作戰</b>${r.tacticName}</span>` : '';
-  return t || tac ? `<div class="matchup">${t}${tac}</div>` : '';
+  const rv = r.rival?.isRival
+    ? `<span class="trait trait--rival"><b>🔥 宿敵</b>
+        生涯對戰 ${r.rival.wins}勝${r.rival.losses}敗（第 ${r.rival.meetings} 次交手）</span>` : '';
+  return t || tac || rv ? `<div class="matchup">${t}${tac}${rv}</div>` : '';
 }
 
 /** 一場比賽的完整卡片 */

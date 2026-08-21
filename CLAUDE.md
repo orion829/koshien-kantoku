@@ -98,6 +98,7 @@ js/
     roguelike.js       傳統、突發事件、作戰、對手特色、轉學生、能力覺醒、學長探班、校務投資、學力考試
     match.js           比賽模擬
     injury.js          受傷與養傷
+    fatigue.js         疲勞累積、消退、對表現與受傷機率的影響
     scouting.js        招生
   screens/
     setup.js           開始畫面
@@ -106,9 +107,11 @@ js/
     boxscore.js        比賽的詳細結果
     radar.js           隊伍能力雷達圖
     roster.js          選手名單
+    lineup.js          先發名單（打擊順序、守備位置、投手輪值）
     schedule.js        賽程表
     timeline.js        主畫面的一年時間線
     summary.js         成績單（存成 .svg 圖檔）
+    playerTooltip.js   滑鼠移到選手名字上的預覽小卡
 tools/
   balance.mjs          平衡驗證
 ```

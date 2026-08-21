@@ -5,7 +5,7 @@
 // 而且 SVG 本身就是一個合法的圖檔格式，直接存檔就能看。
 
 import { positionById, grade } from '../data/abilities.js';
-import { teamStrength, calendarYear } from '../rules/game.js';
+import { teamStrength, calendarYear, RIVAL_THRESHOLD } from '../rules/game.js';
 import { teamProfile } from './radar.js';
 
 const COLORS = {
@@ -119,6 +119,24 @@ export function buildSummarySVG(game) {
         y += 16;
       }
       y += 5;
+    });
+  }
+
+  // ── 宿敵對戰紀錄 ──
+  const rivals = Object.entries(game.rivalRecords || {})
+    .map(([name, r]) => ({ name, ...r, meetings: r.wins + r.losses }))
+    .filter((r) => r.meetings >= RIVAL_THRESHOLD)
+    .sort((a, b) => b.meetings - a.meetings)
+    .slice(0, 6);
+  if (rivals.length) {
+    y += 6;
+    heading('宿敵對戰紀錄');
+    rivals.forEach((r) => {
+      text(pad, y + 10, r.name, { size: 12.5, weight: 700 });
+      text(pad + 130, y + 10, `${r.wins}勝${r.losses}敗（交手 ${r.meetings} 次）`, {
+        size: 11.5, color: COLORS.muted,
+      });
+      y += 19;
     });
   }
 

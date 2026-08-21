@@ -16,6 +16,7 @@ import * as RG from '../js/rules/roguelike.js';
 import * as G from '../js/rules/game.js';
 import * as ST from '../js/state.js';
 import * as S from '../js/rules/scouting.js';
+import * as F from '../js/rules/fatigue.js';
 
 const med = (v) => v.slice().sort((a, b) => a - b)[Math.floor(v.length / 2)];
 const fmt = (v) => (A.grade(Math.round(v)) + Math.round(v)).padEnd(5);
@@ -606,6 +607,50 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
     if (w2.kind === 'training') weeks += 1;
   }
   console.log(`  學力 10 分的人，選「讀書」選了 ${weeks} 次追到 50 分以上（現在 ${Math.round(target.gakuryoku)} 分）`);
+}
+
+head('疲勞：打越多球越累，累了表現打折、更容易受傷，「休息」能大幅消除');
+{
+  console.log(`  累積疲勞 40 分表現倍率 ${F.fatiguePenalty(40).toFixed(3)}　`
+    + `70 分 ${F.fatiguePenalty(70).toFixed(3)}　100 分 ${F.fatiguePenalty(100).toFixed(3)}`
+    + `（40 分以下幾乎沒感覺，越低代表打折越重）`);
+  console.log(`  疲勞 0 受傷倍率 ${F.fatigueInjuryMult(0).toFixed(2)}　`
+    + `疲勞 100 受傷倍率 ${F.fatigueInjuryMult(100).toFixed(2)}`);
+
+  // 跑一整年，連續打好幾週比賽，看王牌投手的疲勞會不會真的累積上去
+  const g3 = ST.createGame({
+    managerName: '疲勞測試', schoolName: '疲勞高校', prefectureId: 'aichi', numYears: 1,
+  });
+  g3.pendingDraft = null;
+  const pick3 = (a) => a[Math.floor(Math.random() * a.length)];
+  let guard3 = 0;
+  let maxFatigue = 0;
+  while (guard3 < 60) {
+    guard3 += 1;
+    const w3 = G.currentWeek(g3);
+    if (!w3) break;
+    if (g3.pendingTransfer) { RG.resolveTransfer(g3, 'warm'); continue; }
+    if (g3.pendingAlumniVisit) { RG.resolveAlumniVisit(g3, 'coach'); continue; }
+    if (g3.pendingAwaken) { RG.resolveAwaken(g3, 'pass'); continue; }
+    if (g3.pendingEvent) { RG.resolveEvent(g3, 0); continue; }
+    if (g3.tacticChoices?.length && !g3.tactic) { g3.tactic = pick3(g3.tacticChoices); continue; }
+    G.takeAction(g3, w3.kind === 'training' ? 'practice' : null);
+    maxFatigue = Math.max(maxFatigue, ...g3.team.players.map((p) => p.fatigue || 0));
+  }
+  console.log(`  一路打過夏季甲子園，全隊疲勞最高值 ${maxFatigue.toFixed(0)}`
+    + `（要 > 0，代表真的有累積；也不該衝到 100 貼頂）`);
+}
+
+head('宿敵對戰紀錄：同一個對手名字打滿 3 次才算宿敵');
+{
+  const g4 = { rivalRecords: {} };
+  const r1 = G.recordRivalResult(g4, '龍谷學園', true);
+  const r2 = G.recordRivalResult(g4, '龍谷學園', false);
+  const r3 = G.recordRivalResult(g4, '龍谷學園', true);
+  console.log(`  第 1 次交手 isRival=${r1.isRival}　第 2 次 isRival=${r2.isRival}　`
+    + `第 3 次 isRival=${r3.isRival}（門檻 ${G.RIVAL_THRESHOLD}，要在第 3 次變 true）`);
+  console.log(`  最終戰績：${g4.rivalRecords['龍谷學園'].wins}勝${g4.rivalRecords['龍谷學園'].losses}敗`
+    + `（要是 2 勝 1 敗）`);
 }
 
 console.log('');

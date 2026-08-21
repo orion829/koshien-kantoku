@@ -6,6 +6,7 @@ import {
 } from '../rules/player.js';
 import { rosterSummary, ROSTER_LIMIT, MATCH_ROSTER, active, matchRoster } from '../rules/roster.js';
 import { isInjured } from '../rules/injury.js';
+import { fatigueLabel } from '../rules/fatigue.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const gradeYearLabel = (n) => `${n}年`;
@@ -44,6 +45,7 @@ function playerRow(p, registered, examBanned) {
       ${banned ? '<span class="status-badge">📕 停賽中・學力不及格</span>' : ''}
       <div class="player__stats">${chips}
         <span class="stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>
+        <span class="stat"><i>疲勞</i><b>${fatigueLabel(p.fatigue)}</b></span>
       </div>
       ${skills ? `<div class="player__skills">${skills}</div>` : ''}
       <div class="player__detail" hidden></div>

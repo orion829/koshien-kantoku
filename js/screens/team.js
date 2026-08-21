@@ -3,6 +3,7 @@ import { save } from '../state.js';
 import { renderWeek } from './week.js';
 import { renderRoster } from './roster.js';
 import { renderSchedule } from './schedule.js';
+import { renderLineup } from './lineup.js';
 import { radarSVG } from './radar.js';
 import { renderTimeline } from './timeline.js';
 import { initPlayerTooltip } from './playerTooltip.js';
@@ -12,6 +13,7 @@ import { efficiency, moraleLabel } from '../rules/morale.js';
 const TABS = [
   { id: 'week', name: '本週', render: renderWeek },
   { id: 'roster', name: '選手名單', render: renderRoster },
+  { id: 'lineup', name: '先發名單', render: renderLineup },
   { id: 'schedule', name: '賽程表', render: renderSchedule },
 ];
 

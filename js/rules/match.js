@@ -59,8 +59,14 @@ function teamRating(players) {
 /**
  * 從名單排出先發九人和投手。
  * 守備位置盡量放適性好的人；打線照打擊能力排。
+ *
+ * customOrder（玩家自己排的先發，可省略）：長度 8 的陣列，
+ * [{ playerId, position }, ...]，是打擊順序 1〜8 棒。缺人（受傷、停賽、
+ * 被別的位置佔走）的位置會自動補人，補的人一樣排在原本那個棒次。
  */
-export function buildLineup(players, { pitcherId = null, cannotPitch = [] } = {}) {
+export function buildLineup(players, {
+  pitcherId = null, cannotPitch = [], customOrder = null,
+} = {}) {
   const pool = players.filter((p) => !p.injury || p.injury.weeks <= 0);
   // 投球數超過一週上限的人還是要上場打擊，只是不能投球
   const blocked = new Set(cannotPitch);
@@ -73,23 +79,44 @@ export function buildLineup(players, { pitcherId = null, cannotPitch = [] } = {}
     || pool[0];
 
   const rest = pool.filter((p) => p.id !== starter.id);
-  const taken = new Set();
-  const fielders = [];
+  const fieldPositions = POSITIONS.filter((x) => x.id !== 'P').map((x) => x.id);
 
-  // 投手以外的 8 個位置，各挑適性最好的人
-  for (const pos of POSITIONS.filter((x) => x.id !== 'P')) {
+  // 玩家自己排的先發：能用的先卡位（人在名單上、位置沒被別的棒次重複用）；
+  // 卡不了的棒次留空，等下面自動補人
+  const takenPlayers = new Set();
+  const takenPositions = new Set();
+  const bySlot = new Array(8).fill(null); // 順序就是打擊順序 1〜8
+  (customOrder || []).slice(0, 8).forEach((c, i) => {
+    const player = rest.find((p) => p.id === c?.playerId);
+    if (!player || takenPlayers.has(player.id)) return;
+    if (!c.position || !fieldPositions.includes(c.position) || takenPositions.has(c.position)) return;
+    takenPlayers.add(player.id);
+    takenPositions.add(c.position);
+    bySlot[i] = { player, position: c.position };
+  });
+
+  // 自動補齊：空的棒次配上還沒用掉的位置，各自挑適性最好的人
+  const openPositions = fieldPositions.filter((pos) => !takenPositions.has(pos));
+  let openIdx = 0;
+  for (let i = 0; i < 8; i += 1) {
+    if (bySlot[i]) continue;
+    const pos = openPositions[openIdx];
+    openIdx += 1;
+    if (!pos) break;
     const best = rest
-      .filter((p) => !taken.has(p.id))
-      .sort((a, b) => aptScore(b, pos.id) - aptScore(a, pos.id))[0];
-    if (!best) break;
-    taken.add(best.id);
-    fielders.push({ player: best, position: pos.id });
+      .filter((p) => !takenPlayers.has(p.id))
+      .sort((a, b) => aptScore(b, pos) - aptScore(a, pos))[0];
+    if (!best) continue;
+    takenPlayers.add(best.id);
+    bySlot[i] = { player: best, position: pos };
   }
 
-  // 打線：打擊好的排前面，投手放第九棒（甲子園沒有指定打擊）
-  const order = fielders
-    .sort((a, b) => batRating(b.player) - batRating(a.player))
-    .concat([{ player: starter, position: 'P' }]);
+  const filled = bySlot.filter(Boolean);
+  // 沒有自訂打線的話，維持原本「打擊好的排前面」；有自訂就照玩家排的順序
+  const fielders = customOrder ? filled : filled.sort((a, b) => batRating(b.player) - batRating(a.player));
+
+  // 打線：投手放第九棒（甲子園沒有指定打擊）
+  const order = fielders.concat([{ player: starter, position: 'P' }]);
 
   return { starter, bullpen: pitchers.filter((p) => p.id !== starter.id), order };
 }
