@@ -172,7 +172,7 @@ export function createPlayer({
     // 生涯數據：畢業時拿來顯示戰績用，被選進職棒的人會寫進結算圖
     career: {
       bat: {
-        ab: 0, h: 0, hr: 0, rbi: 0, r: 0, bb: 0, k: 0, games: 0,
+        ab: 0, h: 0, hr: 0, rbi: 0, r: 0, bb: 0, k: 0, tb: 0, games: 0,
       },
       pit: {
         outs: 0, h: 0, r: 0, bb: 0, k: 0, pitches: 0, games: 0,
@@ -186,7 +186,7 @@ export function accumulateCareerStats(player, bat, pit) {
   if (bat) {
     const c = player.career.bat;
     c.ab += bat.ab; c.h += bat.h; c.hr += bat.hr; c.rbi += bat.rbi;
-    c.r += bat.r; c.bb += bat.bb; c.k += bat.k; c.games += 1;
+    c.r += bat.r; c.bb += bat.bb; c.k += bat.k; c.tb += bat.tb; c.games += 1;
   }
   if (pit) {
     const c = player.career.pit;
@@ -195,19 +195,40 @@ export function accumulateCareerStats(player, bat, pit) {
   }
 }
 
-/** 生涯數據換成一行看得懂的字：打者看打擊率／全壘打，投手看局數／防禦率 */
+const fixed3 = (v) => v.toFixed(3).replace(/^0\./, '.').replace(/^-0\./, '-.');
+
+/** 打者的生涯數據，換算成看板棒球慣用的縮寫（AVG／OBP／SLG／OPS） */
+export function battingLine(bat) {
+  if (!bat.ab) return null;
+  const avg = bat.h / bat.ab;
+  const obp = (bat.h + bat.bb) / (bat.ab + bat.bb);
+  const slg = bat.tb / bat.ab;
+  return {
+    avg: fixed3(avg), obp: fixed3(obp), slg: fixed3(slg), ops: fixed3(obp + slg),
+    hr: bat.hr, rbi: bat.rbi,
+  };
+}
+
+/** 投手的生涯數據：ERA（失分率，沒有分自責分／非自責分，是簡化版）、WHIP */
+export function pitchingLine(pit) {
+  if (!pit.outs) return null;
+  const innings = pit.outs / 3;
+  return {
+    ip: innings.toFixed(1),
+    era: ((pit.r / pit.outs) * 27).toFixed(2),
+    whip: ((pit.bb + pit.h) / innings).toFixed(2),
+    k: pit.k,
+  };
+}
+
+/** 生涯數據換成一行看得懂的字：打者看 AVG／HR／RBI／OPS，投手看 IP／ERA／WHIP／K */
 export function careerLine(player) {
   const { bat, pit } = player.career;
   const parts = [];
-  if (bat.ab > 0) {
-    const avg = (bat.h / bat.ab).toFixed(3).replace(/^0/, '');
-    parts.push(`打擊率 ${avg}・${bat.hr} 轟・${bat.rbi} 打點`);
-  }
-  if (pit.outs > 0) {
-    const innings = (pit.outs / 3).toFixed(1);
-    const era = ((pit.r / pit.outs) * 27).toFixed(2);
-    parts.push(`投了 ${innings} 局・${pit.k} 三振・失分率 ${era}`);
-  }
+  const b = battingLine(bat);
+  if (b) parts.push(`AVG ${b.avg}・${b.hr}HR・${b.rbi}RBI・OPS ${b.ops}`);
+  const p = pitchingLine(pit);
+  if (p) parts.push(`${p.ip}IP・ERA ${p.era}・WHIP ${p.whip}・${p.k}K`);
   return parts.length ? parts.join('・') : '沒有上場紀錄';
 }
 

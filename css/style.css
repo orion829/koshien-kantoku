@@ -1047,8 +1047,11 @@ table.ls .ls__e { color: var(--danger); }
 
 .bs__h--bad { color: var(--danger); }
 
+.bs-scroll { overflow-x: auto; }
+
 table.bs {
   width: 100%;
+  min-width: 480px;
   border-collapse: collapse;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -1066,7 +1069,7 @@ table.bs th {
 table.bs td { padding: 2px 4px; text-align: right; border-top: 1px solid var(--line); }
 table.bs .bs__pos, table.bs .bs__name { text-align: left; }
 table.bs .bs__pos { color: var(--muted); width: 1.6em; }
-table.bs .bs__name { width: 40%; }
+table.bs .bs__name { width: 20%; }
 table.bs .bs__avg { color: var(--muted); }
 table.bs td.hi { color: var(--accent); font-weight: 600; }
 table.bs td.warn-num { color: var(--danger); font-weight: 600; }

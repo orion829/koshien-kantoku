@@ -1,5 +1,6 @@
 import { UI } from '../strings.js';
 import { runSummary } from '../data/calendar.js';
+import { calendarYear } from '../rules/game.js';
 
 const KIND_LABEL = {
   match: UI.kindMatch,
@@ -34,7 +35,7 @@ export function renderSchedule(root, game) {
   const years = schedule.map((weeks, i) => `
     <section class="year">
       <h3 class="year__title">
-        ${UI.yearLabels[i]}
+        ${calendarYear(i + 1)}年
         <span class="year__count">${weeks.length} ${UI.unitWeek}</span>
       </h3>
       <ol class="weeks">${weeks.map(week).join('')}</ol>

@@ -39,6 +39,10 @@ export {
   PERKS, perkById, TACTICS, tacticById, eventById, UPGRADES, upgradeById,
 } from './roguelike.js';
 
+// 畫面上不顯示「第幾年」，改顯示真的西元年，從這一年開始算
+export const START_YEAR = 2026;
+export const calendarYear = (campaignYear) => START_YEAR + campaignYear - 1;
+
 // ── 比賽的資格關聯 ──────────────────────────────────────
 // 地區大賽輸了就沒有甲子園；秋季縣大賽輸了就沒有秋季地區大賽，
 // 秋季地區大賽沒打進冠軍賽就沒有春季甲子園。

@@ -4,6 +4,8 @@
 // 每一格是一週，顏色代表比賽／練習／過場，
 // 下面再用一整排標出季節（春季練習、夏季大賽……）。
 
+import { calendarYear } from '../rules/game.js';
+
 const PHASE_GROUP = {
   newterm: 'spring', practice: 'spring', pretourn: 'spring',
   regional: 'summer', koshien: 'summer',
@@ -54,7 +56,7 @@ export function renderTimeline(game) {
   return `
     <div class="timeline">
       <div class="timeline__head">
-        <span>第 ${game.cursor.year} 年　時間軸</span>
+        <span>${calendarYear(game.cursor.year)}年　時間軸</span>
         <span class="timeline__pos">你在這裡：第 ${game.cursor.week} ／ ${weeks.length} 週</span>
       </div>
       <div class="timeline__track">

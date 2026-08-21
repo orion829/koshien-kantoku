@@ -33,7 +33,6 @@ export const UI = {
   unitTeam: '隊',
   unitWin: '場',
   unitWeek: '週',
-  yearLabels: ['第1年', '第2年', '第3年'],
 
   // 賽程確認畫面
   tallyTotal: '總週數',

@@ -1,6 +1,10 @@
 // 比賽的詳細結果
 //
 // 逐局比分表 + 我方每個選手的數據 + 精彩場面 + 這場比賽帶來的成長和傷勢。
+// 數據欄位用棒球慣用的英文縮寫（AVG／OBP／SLG／OPS／ERA／WHIP），
+// 台灣的棒球轉播、報紙也都是這樣寫，不算違背「畫面上的字都要中文」。
+
+import { battingLine, pitchingLine } from '../rules/player.js';
 
 const STAT_NAME = {
   meet: '打擊', power: '力量', speed: '速度', arm: '臂力',
@@ -13,7 +17,6 @@ const KIND_NAME = {
 };
 
 const ip = (outs) => `${Math.floor(outs / 3)}.${outs % 3}`;
-const avg = (h, ab) => (ab ? (h / ab).toFixed(3).replace(/^0/, '') : '－');
 
 /** 逐局比分表 */
 function lineScore(r) {
@@ -44,7 +47,9 @@ function lineScore(r) {
 
 /** 我方打線 */
 function battingTable(us) {
-  const rows = us.batters.map((b) => `
+  const rows = us.batters.map((b) => {
+    const line = battingLine(b);
+    return `
     <tr>
       <td class="bs__pos">${b.pos}</td>
       <td class="bs__name" data-pid="${b.id}">${b.name}</td>
@@ -54,19 +59,25 @@ function battingTable(us) {
       <td class="${b.rbi ? 'hi' : ''}">${b.rbi || '－'}</td>
       <td>${b.bb || '－'}</td>
       <td>${b.k || '－'}</td>
-      <td class="bs__avg">${avg(b.h, b.ab)}</td>
-    </tr>`).join('');
+      <td class="bs__avg">${line ? line.avg : '－'}</td>
+      <td>${line ? line.obp : '－'}</td>
+      <td>${line ? line.slg : '－'}</td>
+      <td class="bs__avg">${line ? line.ops : '－'}</td>
+    </tr>`;
+  }).join('');
   return `
-    <table class="bs">
-      <thead><tr><th></th><th>選手</th><th>打數</th><th>安打</th><th>轟</th>
-        <th>打點</th><th>四壞</th><th>三振</th><th>打擊率</th></tr></thead>
+    <div class="bs-scroll"><table class="bs">
+      <thead><tr><th></th><th>選手</th><th>AB</th><th>H</th><th>HR</th>
+        <th>RBI</th><th>BB</th><th>SO</th><th>AVG</th><th>OBP</th><th>SLG</th><th>OPS</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table></div>`;
 }
 
 /** 我方投手 */
 function pitchingTable(us) {
-  const rows = us.pitchers.map((p) => `
+  const rows = us.pitchers.map((p) => {
+    const line = pitchingLine(p);
+    return `
     <tr>
       <td class="bs__name" data-pid="${p.id}">${p.name}</td>
       <td>${ip(p.outs)}</td>
@@ -74,14 +85,16 @@ function pitchingTable(us) {
       <td class="${p.r ? '' : 'hi'}">${p.r}</td>
       <td class="${p.k >= 7 ? 'hi' : ''}">${p.k}</td>
       <td>${p.bb}</td>
+      <td>${line ? line.whip : '－'}</td>
       <td class="${p.pitches > 120 ? 'warn-num' : ''}">${p.pitches}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   return `
-    <table class="bs">
-      <thead><tr><th>投手</th><th>局數</th><th>被安打</th><th>失分</th>
-        <th>三振</th><th>四壞</th><th>投球數</th></tr></thead>
+    <div class="bs-scroll"><table class="bs">
+      <thead><tr><th>投手</th><th>IP</th><th>H</th><th>R</th>
+        <th>K</th><th>BB</th><th>WHIP</th><th>投球數</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table></div>`;
 }
 
 function highlights(r) {

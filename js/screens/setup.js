@@ -1,6 +1,7 @@
 import { REGIONS, byRegion, byId, TOTAL_TEAMS, REPRESENTATIVES } from '../data/prefectures.js';
 import { runSummary } from '../data/calendar.js';
 import { UI, randomManagerName, randomSchoolName } from '../strings.js';
+import { calendarYear } from '../rules/game.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(4 - n);
 
@@ -99,7 +100,7 @@ export function renderSetup(root, onStart) {
         <dt>${UI.briefScout}</dt><dd><span class="stars">${stars(p.scoutPool)}</span></dd>
         <dt>${UI.briefRunLength}</dt><dd>${s.total} ${UI.unitWeek}</dd>
         <dt>${UI.briefYears}</dt>
-        <dd>${s.years.map((n, i) => `${UI.yearLabels[i]} ${n}${UI.unitWeek}`).join(' ／ ')}</dd>
+        <dd>${s.years.map((n, i) => `${calendarYear(i + 1)}年 ${n}${UI.unitWeek}`).join(' ／ ')}</dd>
       </dl>
       <p class="brief__split">
         <span class="swatch swatch--match"></span>${UI.kindMatch} ${s.match}

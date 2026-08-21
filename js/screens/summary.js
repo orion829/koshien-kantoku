@@ -5,7 +5,7 @@
 // 而且 SVG 本身就是一個合法的圖檔格式，直接存檔就能看。
 
 import { positionById, grade } from '../data/abilities.js';
-import { teamStrength } from '../rules/game.js';
+import { teamStrength, calendarYear } from '../rules/game.js';
 import { teamProfile } from './radar.js';
 
 const COLORS = {
@@ -63,7 +63,7 @@ export function buildSummarySVG(game) {
   text(pad, y, `${game.school.prefectureName}　監督 ${game.manager.name}`,
     { size: 13, color: COLORS.muted });
   y += 20;
-  text(pad, y, `第 ${game.cursor.year} 年結算　目前戰力 ${teamStrength(game.team.players)}`,
+  text(pad, y, `${calendarYear(game.cursor.year)}年結算　目前戰力 ${teamStrength(game.team.players)}`,
     { size: 13, color: COLORS.accent, weight: 600 });
   y += 14;
   hr(y);
@@ -78,8 +78,8 @@ export function buildSummarySVG(game) {
         return v.champion ? `${name}優勝` : `${name}止步於${v.lastRound}`;
       })
       .filter(Boolean);
-    text(pad, y, `第 ${i + 1} 年`, { size: 12.5, weight: 700 });
-    text(pad + 66, y, cells.length ? cells.join('　') : '（還沒開始）', {
+    text(pad, y, `${calendarYear(i + 1)}年`, { size: 12.5, weight: 700 });
+    text(pad + 68, y, cells.length ? cells.join('　') : '（還沒開始）', {
       size: 11.5, color: COLORS.muted,
     });
     y += 21;
@@ -110,7 +110,7 @@ export function buildSummarySVG(game) {
       const pos = positionById(a.position)?.short || '';
       const stars = '★'.repeat(a.talent) + '☆'.repeat(5 - a.talent);
       text(pad, y + 10, `${a.name}`, { size: 12.5, weight: 700 });
-      text(pad + 90, y + 10, `${pos}　第 ${a.year} 年畢業　${stars}　注目度 ${a.attention}`, {
+      text(pad + 90, y + 10, `${pos}　${calendarYear(a.year)}年畢業　${stars}　注目度 ${a.attention}`, {
         size: 11.5, color: COLORS.muted,
       });
       y += 18;
@@ -143,7 +143,7 @@ export function downloadSummary(game) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${game.school.name}_第${game.cursor.year}年成績單.svg`;
+  a.download = `${game.school.name}_${calendarYear(game.cursor.year)}年成績單.svg`;
   document.body.appendChild(a);
   a.click();
   a.remove();

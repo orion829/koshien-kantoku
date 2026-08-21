@@ -1,5 +1,5 @@
 import {
-  currentWeek, availableActions, takeAction, teamStrength, buyUpgrade, upgradeCost,
+  currentWeek, availableActions, takeAction, teamStrength, buyUpgrade, upgradeCost, calendarYear,
 } from '../rules/game.js';
 import { moraleLabel, efficiency } from '../rules/morale.js';
 import { overallGrade, isPitcher } from '../rules/player.js';
@@ -201,7 +201,7 @@ function alumniPanel(game) {
     <div class="event event--alumni">
       <h3 class="event__title">職棒學長回來探班了</h3>
       <p class="event__text">
-        <b>${a.name}</b>（${pos}・第 ${a.year} 年畢業）現在在職棒打拚，
+        <b>${a.name}</b>（${pos}・${calendarYear(a.year)}年畢業）現在在職棒打拚，
         今天特地回母校看看學弟。
       </p>
       <div class="picks picks--two">
@@ -611,7 +611,7 @@ function weekBar(game, w) {
   return `
     <div class="weekbar">
       <div class="weekbar__now">
-        <span class="weekbar__pos">第 ${game.cursor.year} 年　第 ${game.cursor.week} 週</span>
+        <span class="weekbar__pos">${calendarYear(game.cursor.year)}年　第 ${game.cursor.week} 週</span>
         <h2 class="weekbar__event">${w.event}</h2>
         <span class="weekbar__month">${w.month}
           ・${w.eliminated ? '已淘汰，改成練習' : kind}</span>
@@ -690,7 +690,7 @@ function resultTable(game) {
         ? `<td class="win">${name} 優勝</td>`
         : `<td>${name} 止步於${v.lastRound}</td>`;
     }).join('');
-    return `<tr><th>第 ${i + 1} 年</th>${cells}</tr>`;
+    return `<tr><th>${calendarYear(i + 1)}年</th>${cells}</tr>`;
   }).join('');
   return `<table class="results"><tbody>${rows}</tbody></table>`;
 }

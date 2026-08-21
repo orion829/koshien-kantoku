@@ -216,7 +216,7 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
 
 const newBatLine = (p, pos) => ({
   id: p.id, name: p.name, pos: positionById(pos)?.short || '',
-  ab: 0, h: 0, hr: 0, rbi: 0, r: 0, bb: 0, k: 0,
+  ab: 0, h: 0, hr: 0, rbi: 0, r: 0, bb: 0, k: 0, tb: 0,
 });
 
 const newPitLine = (p) => ({
@@ -378,16 +378,16 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
         advance(1, 0);
         break;
       case 'single': {
-        bl.ab += 1; bl.h += 1; pit.h += 1;
+        bl.ab += 1; bl.h += 1; bl.tb += 1; pit.h += 1;
         // 防守方外野臂力強的話，跑者比較不敢多跑一個壘
         const takeExtra = clamp(0.42 + off.mods.advance - (def.arm - 50) * 0.0018, 0.15, 0.7);
         advance(rng() < takeExtra ? 2 : 1, 0);
         break;
       }
-      case 'double': bl.ab += 1; bl.h += 1; pit.h += 1; advance(2, 1); break;
-      case 'triple': bl.ab += 1; bl.h += 1; pit.h += 1; advance(3, 2); break;
+      case 'double': bl.ab += 1; bl.h += 1; bl.tb += 2; pit.h += 1; advance(2, 1); break;
+      case 'triple': bl.ab += 1; bl.h += 1; bl.tb += 3; pit.h += 1; advance(3, 2); break;
       case 'hr': {
-        bl.ab += 1; bl.h += 1; bl.hr += 1; pit.h += 1;
+        bl.ab += 1; bl.h += 1; bl.hr += 1; bl.tb += 4; pit.h += 1;
         advance(3, null);
         scoreRunner(batter);
         rbi += 1;
