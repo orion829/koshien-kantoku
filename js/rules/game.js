@@ -151,7 +151,7 @@ export function teamStrength(all) {
  */
 const OPPONENT = {
   regional: { base: 42, step: 3.5 },
-  koshien: { base: 52, step: 3 },
+  koshien: { base: 47, step: 3 },
   autumn: { base: 36, step: 5 },
   autumnArea: { base: 50, step: 5 },
   senbatsu: { base: 58, step: 4 },

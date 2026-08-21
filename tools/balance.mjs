@@ -611,9 +611,9 @@ head('學力與考試：學力越低越容易被禁賽，但保底不能把隊�
 
 head('疲勞：打越多球越累，累了表現打折、更容易受傷，「休息」能大幅消除');
 {
-  console.log(`  累積疲勞 40 分表現倍率 ${F.fatiguePenalty(40).toFixed(3)}　`
-    + `70 分 ${F.fatiguePenalty(70).toFixed(3)}　100 分 ${F.fatiguePenalty(100).toFixed(3)}`
-    + `（40 分以下幾乎沒感覺，越低代表打折越重）`);
+  console.log(`  累積疲勞 30 分表現倍率 ${F.fatiguePenalty(30).toFixed(3)}　`
+    + `65 分 ${F.fatiguePenalty(65).toFixed(3)}　100 分 ${F.fatiguePenalty(100).toFixed(3)}`
+    + `（30 分以下幾乎沒感覺，越低代表打折越重，最重掉到 0.70）`);
   console.log(`  疲勞 0 受傷倍率 ${F.fatigueInjuryMult(0).toFixed(2)}　`
     + `疲勞 100 受傷倍率 ${F.fatigueInjuryMult(100).toFixed(2)}`);
 

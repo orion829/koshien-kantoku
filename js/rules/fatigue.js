@@ -23,10 +23,11 @@ export function decayFatigue(players, resting = false) {
 
 /**
  * 疲勞對比賽表現的影響：換成一個能力倍率。
- * 50 分以下幾乎沒感覺，50〜100 開始線性掉，最多掉 15%。
+ * 30 分以下幾乎沒感覺，30〜100 開始線性掉，最多掉 30%——
+ * 操到疲勞見底的王牌，能力打七折是真的會輸球的那種程度。
  */
 export function fatiguePenalty(fatigue) {
-  return 1 - clamp(((fatigue || 0) - 40) / 60, 0, 1) * 0.15;
+  return 1 - clamp(((fatigue || 0) - 30) / 70, 0, 1) * 0.30;
 }
 
 /** 疲勞對受傷機率的加成，跟投球數的加成用乘的 */

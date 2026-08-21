@@ -21,7 +21,7 @@ import { createPlayer, boostPotential } from './player.js';
 import { addRecruits, active } from './roster.js';
 import { injure } from './injury.js';
 import {
-  MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, skillsFor, skillById,
+  MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, skillsFor, skillById, grade,
 } from '../data/abilities.js';
 
 // ── 加成表 ──────────────────────────────────────────────
@@ -1152,8 +1152,15 @@ export function legacyPointsFor(yearProgress, draftedCount = 0) {
 
 export const EXAM_MIN_ELIGIBLE = 12;
 
-/** 學力換成及格機率。50 分（平均）大概 75%，20 分很危險，80 分幾乎穩過 */
-const examPassChance = (p) => clamp(0.3 + (p.gakuryoku / 100) * 0.9, 0.1, 0.97);
+/**
+ * 及格機率照學力的字母等級分，不是連續公式——這樣「畫面上寫 A 卻不及格」
+ * 才不會常常發生。A／S 幾乎穩過（極少數的意外，不是常態），
+ * 真正有風險的是 D 以下。
+ */
+const EXAM_PASS_BY_GRADE = {
+  S: 0.99, A: 0.97, B: 0.95, C: 0.90, D: 0.82, E: 0.70, F: 0.55, G: 0.40,
+};
+const examPassChance = (p) => EXAM_PASS_BY_GRADE[grade(p.gakuryoku)];
 
 /**
  * 考期末考。回傳 { failed: [名字...] } 給畫面顯示，
