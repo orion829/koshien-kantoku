@@ -17,6 +17,7 @@ import * as G from '../js/rules/game.js';
 import * as ST from '../js/state.js';
 import * as S from '../js/rules/scouting.js';
 import * as F from '../js/rules/fatigue.js';
+import { PRO_TEAMS } from '../js/data/proTeams.js';
 
 const med = (v) => v.slice().sort((a, b) => a - b)[Math.floor(v.length / 2)];
 const fmt = (v) => (A.grade(Math.round(v)) + Math.round(v)).padEnd(5);
@@ -794,6 +795,55 @@ head('職棒選秀：野手不該比投手難拿注目度，選走的人天賦�
     + `（投手在隊上大約佔 26%，不該偏太多）`);
   console.log(`  天賦分布：${JSON.stringify(talentCounts)}　`
     + `非滿星被選走 ${nonFiveStar} 人（要是 0，職棒只選五星）`);
+}
+
+head('球隊經理與校友錄：常駐 2〜3 個、畢業去向都有效、進職棒的人都寫上球隊名字');
+{
+  // 經理的特殊能力要真的疊進加成表，不然「debuff」就只是好看的文字
+  const base = RG.modifiers({ perks: [], upgrades: {}, team: { managers: [] } });
+  const goodMgr = { skillId: 'connections', retired: false, gradeYear: 1 };
+  const withMgr = RG.modifiers({ perks: [], upgrades: {}, team: { managers: [goodMgr] } });
+  console.log(`  經理「人面很廣」生效：注目度 ${base.fame} → ${withMgr.fame}（要 +3）`);
+
+  const pick8 = (a) => a[Math.floor(Math.random() * a.length)];
+  const managerCounts = [];
+  let draftedNoTeam = 0;
+  let badPathCount = 0;
+  let alumniTotal = 0;
+  let alumniManagers = 0;
+  let alumniDrafted = 0;
+
+  for (let trial = 0; trial < 10; trial += 1) {
+    const g8 = ST.createGame({
+      managerName: '經理測試', schoolName: '經理高校', prefectureId: 'aichi', numYears: 12,
+    });
+    g8.pendingDraft = null;
+    let guard8 = 0;
+    while (g8.cursor.year <= 12 && guard8 < 3000) {
+      guard8 += 1;
+      if (g8.pendingDraft?.length) { RG.choosePerk(g8, pick8(g8.pendingDraft)); continue; }
+      if (g8.pendingTransfer) { RG.resolveTransfer(g8, 'warm'); continue; }
+      if (g8.pendingAlumniVisit) { RG.resolveAlumniVisit(g8, 'coach'); continue; }
+      if (g8.pendingAwaken) { RG.resolveAwaken(g8, 'pass'); continue; }
+      if (g8.pendingEvent) { RG.resolveEvent(g8, 0); continue; }
+      if (g8.tacticChoices?.length && !g8.tactic) { g8.tactic = pick8(g8.tacticChoices); continue; }
+      const acts8 = G.availableActions(g8).filter((a) => !a.todo);
+      G.takeAction(g8, G.currentWeek(g8).kind === 'training' ? pick8(acts8).id : null);
+      managerCounts.push(RG.activeManagers(g8.team.managers).length);
+    }
+    (g8.proAlumni || []).forEach((d) => { if (!PRO_TEAMS.includes(d.team)) draftedNoTeam += 1; });
+    (g8.alumni || []).forEach((a) => {
+      alumniTotal += 1;
+      if (a.role === 'manager') alumniManagers += 1;
+      if (a.drafted) alumniDrafted += 1;
+      else if (!RG.graduatePathById(a.path)) badPathCount += 1;
+    });
+  }
+  console.log(`  10 局 × 12 年，經理常駐人數 最小 ${Math.min(...managerCounts)}　`
+    + `最大 ${Math.max(...managerCounts)}（要在 1〜3 之間，不會斷炊也不會爆量）`);
+  console.log(`  進職棒的畢業生沒寫上球隊名字：${draftedNoTeam} 筆（要是 0）`);
+  console.log(`  校友錄總共 ${alumniTotal} 筆（球員+經理），其中經理 ${alumniManagers} 筆、`
+    + `職棒 ${alumniDrafted} 筆、去向抽壞掉 ${badPathCount} 筆（要是 0）`);
 }
 
 console.log('');

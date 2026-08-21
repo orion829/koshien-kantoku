@@ -33,6 +33,7 @@ function tipHTML(p, game) {
   const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
   const hurt = isInjured(p);
   const banned = (game.examBanned || []).includes(p.id);
+  const tired = (p.fatigue || 0) >= 50;
   const main = isPitcher(p) ? PITCHER_STATS : BATTER_STATS;
   const chips = main.map((s) => {
     const g = grade(p.abilities[s.id]);
@@ -56,7 +57,8 @@ function tipHTML(p, game) {
     <div class="player-tip__line">生涯戰績：${careerLine(p)}</div>
     ${tag ? `<div class="player-tip__tag">${tag}</div>` : ''}
     ${hurt ? `<div class="player-tip__warn">🤕 養傷中・還要 ${p.injury.weeks} 週</div>` : ''}
-    ${banned ? '<div class="player-tip__warn">📕 停賽中・學力不及格</div>' : ''}`;
+    ${banned ? '<div class="player-tip__warn">📕 停賽中・學力不及格</div>' : ''}
+    ${tired ? `<div class="player-tip__warn player-tip__warn--tired">🥱 ${fatigueLabel(p.fatigue)}</div>` : ''}`;
 }
 
 /**

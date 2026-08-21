@@ -17,6 +17,7 @@ import {
   overall, isPitcher, createPlayer, boostPotential, accumulateCareerStats, careerLine,
 } from './player.js';
 import { generateOpponent, buildLineup, playMatch } from './match.js';
+import { randomProTeam } from '../data/proTeams.js';
 import {
   healthy, isInjured, injure, healWeek, matchInjuryChance, trainInjuryChance,
 } from './injury.js';
@@ -34,13 +35,14 @@ import {
   modifiers, matchMods, drawPerks, drawTactics, rollEvent, tacticById,
   pickTransferWeek, rollTransferStudent, resolveTransfer, rollAwaken, resolveAwaken,
   rollAlumniVisit, resolveAlumniVisit, legacyPointsFor, buyUpgrade, upgradeCost, resolveExam,
-  refreshExamEligibility,
+  refreshExamEligibility, createManager, rollGraduatePath, managerSkillById,
 } from './roguelike.js';
 
 export {
   choosePerk, resolveEvent, drawTactics, modifiers, matchMods, resolveTransfer,
   resolveAwaken, resolveAlumniVisit, buyUpgrade, upgradeCost,
   PERKS, perkById, TACTICS, tacticById, eventById, UPGRADES, upgradeById,
+  MANAGER_SKILLS, managerSkillById, GRADUATE_PATHS, graduatePathById, activeManagers,
 } from './roguelike.js';
 
 // 畫面上不顯示「第幾年」，改顯示真的西元年，從這一年開始算
@@ -152,7 +154,7 @@ export function teamStrength(all) {
  */
 const OPPONENT = {
   regional: { base: 42, step: 2.5 },
-  koshien: { base: 50, step: 3 },
+  koshien: { base: 51, step: 3 },
   autumn: { base: 36, step: 5 },
   autumnArea: { base: 50, step: 5 },
   senbatsu: { base: 58, step: 4 },
@@ -422,6 +424,24 @@ export function takeAction(game, actionId, rng = Math.random) {
       }));
       log.drafted = checkDraft(game, retirees, rng);
       log.joined = fillToMinimum(game, rng);
+      // 沒被選進職棒的畢業生，抽一個「未來的路」記進校友錄——
+      // 純粹是花絮，不影響任何數值，只是不想讓畢業生就這樣憑空消失
+      const alumni = retirees.map((p) => {
+        const draftRec = log.drafted.find((d) => d.id === p.id);
+        return {
+          id: p.id,
+          name: p.name,
+          role: 'player',
+          position: p.position,
+          talent: p.talent,
+          overall: overall(p),
+          year: game.cursor.year,
+          career: careerLine(p),
+          drafted: draftRec ? { team: draftRec.team } : null,
+          path: draftRec ? null : rollGraduatePath(p, rng),
+        };
+      });
+      game.alumni = [...(game.alumni || []), ...alumni];
       // 這一年的戰績換成傳承點數，可以拿去買永久升級——這是「學校
       // 越帶越強」的主要來源，不會因為這一批球員畢業就歸零
       const earned = legacyPointsFor(game.progress[game.cursor.year - 1], log.drafted.length);
@@ -489,6 +509,7 @@ function checkDraft(game, retirees, rng) {
       year: game.cursor.year,
       attention: Math.round(p.scoutAttention),
       career: careerLine(p),
+      team: randomProTeam(rng),
     };
     game.proAlumni = [...(game.proAlumni || []), rec];
     drafted.push(rec);
@@ -663,4 +684,35 @@ function rollOver(game, rng) {
     walkOns: walkOns.length,
     quit: quit.map((p) => p.name),
   };
+
+  rollOverManagers(game, rng);
+}
+
+/**
+ * 經理也是三年一輪替：一年招一個一年級，三年級升上去畢業。
+ * 跟球員不同的是，經理不受「三年級八月退隊」影響（她們不用出賽），
+ * 所以整個流程都放在換年這裡，跟畢業典禮的時間點一致。
+ */
+function rollOverManagers(game, rng) {
+  const managers = game.team.managers || [];
+  const staying = [];
+  const graduated = [];
+  managers.forEach((mgr) => {
+    if (mgr.gradeYear >= 3) graduated.push(mgr);
+    else staying.push({ ...mgr, gradeYear: mgr.gradeYear + 1 });
+  });
+  staying.push(createManager(1, rng));
+  game.team.managers = staying;
+
+  if (!graduated.length) return;
+  const alumni = graduated.map((mgr) => ({
+    id: mgr.id,
+    name: mgr.name,
+    role: 'manager',
+    skill: managerSkillById(mgr.skillId)?.name || '',
+    year: game.cursor.year,
+    drafted: null,
+    path: rollGraduatePath(null, rng),
+  }));
+  game.alumni = [...(game.alumni || []), ...alumni];
 }

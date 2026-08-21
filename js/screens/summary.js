@@ -114,6 +114,10 @@ export function buildSummarySVG(game) {
         size: 11.5, color: COLORS.muted,
       });
       y += 18;
+      if (a.team) {
+        text(pad + 14, y + 10, `加盟球隊：${a.team}`, { size: 10.5, color: COLORS.accent });
+        y += 16;
+      }
       if (a.career) {
         text(pad + 14, y + 10, `高中生涯：${a.career}`, { size: 10.5, color: COLORS.muted });
         y += 16;

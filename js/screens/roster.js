@@ -8,9 +8,33 @@ import { rosterSummary, ROSTER_LIMIT, MATCH_ROSTER, active, matchRoster } from '
 import { isInjured } from '../rules/injury.js';
 import { fatigueLabel } from '../rules/fatigue.js';
 import { computeLineupSlots, lineupTag } from './lineup.js';
+import { managerSkillById } from '../rules/roguelike.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 const gradeYearLabel = (n) => `${n}年`;
+
+/** 目前在隊上的經理，跟球員名單放在一起顯示 */
+function managerSection(game) {
+  const managers = (game.team.managers || []).filter((m) => !m.retired);
+  if (!managers.length) return '';
+  const rows = [...managers]
+    .sort((a, b) => b.gradeYear - a.gradeYear)
+    .map((m) => {
+      const skill = managerSkillById(m.skillId);
+      return `
+        <li class="manager-row${skill && !skill.good ? ' manager-row--bad' : ''}">
+          <span class="manager-row__year y${m.gradeYear}">${gradeYearLabel(m.gradeYear)}</span>
+          <span class="manager-row__name">${m.name}</span>
+          <span class="manager-row__skill">${skill ? skill.name : ''}</span>
+          <span class="manager-row__desc">${skill ? skill.desc : ''}</span>
+        </li>`;
+    }).join('');
+  return `
+    <section class="managers">
+      <h3 class="managers__title">球隊經理<span class="grade-group__count">${managers.length} 人</span></h3>
+      <ul class="managers__list">${rows}</ul>
+    </section>`;
+}
 
 /** 一列球員（收合狀態） */
 function playerRow(p, registered, examBanned, lineupInfo) {
@@ -30,6 +54,7 @@ function playerRow(p, registered, examBanned, lineupInfo) {
   const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
   const hurt = isInjured(p);
   const banned = examBanned?.has(p.id);
+  const tired = (p.fatigue || 0) >= 50;
 
   return `
     <li class="player${hurt || banned ? ' player--hurt' : ''}" data-player="${p.id}">
@@ -45,6 +70,7 @@ function playerRow(p, registered, examBanned, lineupInfo) {
       ${lineupTag(p, lineupInfo) ? `<span class="lineup-tag">${lineupTag(p, lineupInfo)}</span>` : ''}
       ${hurt ? `<span class="status-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
       ${banned ? '<span class="status-badge">📕 停賽中・學力不及格</span>' : ''}
+      ${tired ? `<span class="status-badge status-badge--tired">🥱 ${fatigueLabel(p.fatigue)}</span>` : ''}
       <div class="player__stats">${chips}
         <span class="stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>
         <span class="stat"><i>疲勞</i><b>${fatigueLabel(p.fatigue)}</b></span>
@@ -155,6 +181,8 @@ export function renderRoster(root, game) {
         <li><b class="g g--${grade(s.overall)}">${grade(s.overall)}</b><span>隊伍平均</span></li>
         <li><b class="g g--${overallGrade(s.best)}">${overallGrade(s.best)}</b><span>最強球員</span></li>
       </ul>
+
+      ${managerSection(game)}
 
       ${s.total > MATCH_ROSTER ? `<p class="notice">
         部員上限 ${ROSTER_LIMIT} 人，你現在有 ${s.total} 人。

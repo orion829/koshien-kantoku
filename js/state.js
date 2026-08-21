@@ -1,10 +1,10 @@
 import { byId } from './data/prefectures.js';
 import { buildRun } from './data/calendar.js';
 import { createRoster } from './rules/roster.js';
-import { drawPerks, pickTransferWeek } from './rules/roguelike.js';
+import { drawPerks, pickTransferWeek, createManager } from './rules/roguelike.js';
 
-const SAVE_KEY = 'koshien-kantoku:save:v15';
-export const SAVE_VERSION = 15;
+const SAVE_KEY = 'koshien-kantoku:save:v16';
+export const SAVE_VERSION = 16;
 
 /**
  * 從開始畫面的輸入建立一份新的遊戲存檔。
@@ -47,6 +47,8 @@ export function createGame({
     team: {
       archetype: { id: archetype.id, name: archetype.name, desc: archetype.desc },
       players,
+      // 接手時球隊已經有經理在了，跟球員一樣一、二、三年級各一個
+      managers: [1, 2, 3].map((gy) => createManager(gy)),
       startersGraduated: false,      // 接手時那批三年級畢業了沒——畢業後開局標籤就不顯示了
     },
 
@@ -78,6 +80,7 @@ export function createGame({
     examBanned: [],                 // 期末考沒過、這一輪大賽不能出賽的球員 id
     customLineup: null,             // 玩家自己排的先發：{ order:[{playerId,position}...], pitchers:[id,...] }
     rivalRecords: {},               // 對戰紀錄：{ 對手校名: {wins, losses} }，打滿 3 次算宿敵
+    alumni: [],                      // 畢業校友錄（球員和經理都算），給校友錄畫面回顧用
 
     // 最近做過的事，給畫面顯示用（只留最後 40 筆）
     log: [],

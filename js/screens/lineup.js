@@ -59,6 +59,7 @@ export function renderLineup(root, game) {
     const key = isPitcher(p)
       ? `球速 ${playerVelocity(p)} km/h・控球 ${grade(p.abilities.control)}`
       : `打擊 ${grade(p.abilities.meet)}・力量 ${grade(p.abilities.power)}`;
+    const tired = (p.fatigue || 0) >= 50;
     return `
       <li class="lineup-row lineup-row--view">
         <span class="lineup-row__num">${i + 1}棒</span>
@@ -66,7 +67,8 @@ export function renderLineup(root, game) {
         <span class="lineup-row__name">${p.name}
           <b class="g g--${overallGrade(p)}">${overallGrade(p)}</b></span>
         <span class="lineup-row__key">${key}</span>
-        <span class="lineup-row__fatigue">疲勞 ${fatigueLabel(p.fatigue)}</span>
+        <span class="lineup-row__fatigue${tired ? ' lineup-row__fatigue--tired' : ''}">
+          ${tired ? '🥱 ' : ''}疲勞 ${fatigueLabel(p.fatigue)}</span>
       </li>`;
   }).join('');
 

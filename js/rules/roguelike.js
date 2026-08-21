@@ -1,6 +1,6 @@
 // Roguelike 要素
 //
-// 這個檔案放「每一局都不一樣」的東西。分成九種：
+// 這個檔案放「每一局都不一樣」的東西。分成十一種：
 //
 //   1. 傳統   一局裡會遇到 5 次三選一，選到的效果整局都有效
 //   2. 突發事件 每個練習週都會遇到一個，兩個選項各有好壞
@@ -13,6 +13,9 @@
 //   8. 校務投資 每年戰績換傳承點數，拿去買永久升級——
 //             這是「學校越帶越強」的主要來源，球員換血也不會消失
 //   9. 學力與考試 夏／秋／春各有一次期末考，考不過那一輪大賽不能出賽
+//  10. 球隊經理 一年招一個，常駐 2〜3 個，特殊能力有好有壞，三年後畢業
+//  11. 畢業去向 沒被職棒選走的畢業生（和畢業的經理）抽一個未來的路，
+//             全部記進 game.alumni，給校友錄畫面回顧用
 //
 // 所有的加成都寫進同一個「加成表」（mods），
 // 這樣比賽、練習、招生只要看這張表就好，不用到處寫 if。
@@ -20,6 +23,7 @@
 import { createPlayer, boostPotential } from './player.js';
 import { addRecruits, active } from './roster.js';
 import { injure } from './injury.js';
+import { randomManagerName } from '../data/names.js';
 import {
   MAX_ABILITY, BATTER_STATS, PITCHER_STATS, POSITIONS, skillsFor, skillById, grade,
 } from '../data/abilities.js';
@@ -162,6 +166,11 @@ export function modifiers(game) {
     const u = upgradeById(id);
     if (!u) return;
     for (let i = 0; i < level; i += 1) u.apply(m);
+  });
+  // 經理的特殊能力也是永久生效的，只要她還在隊上——好的能力和
+  // 壞的能力用同一套邏輯疊進去，不特別偏袒玩家
+  activeManagers(game?.team?.managers).forEach((mgr) => {
+    managerSkillById(mgr.skillId)?.apply(m);
   });
   return m;
 }
@@ -656,6 +665,84 @@ export const EVENTS = [
       },
     ],
   },
+  {
+    id: 'managerNotes',
+    title: '經理在整理球探筆記',
+    text: '她把每個人的比賽數據都存了下來，說想幫忙找出弱點。',
+    available: (game) => activeManagers(game.team?.managers).length > 0,
+    options: [
+      {
+        label: '請她繼續做',
+        hint: '注目度 +3',
+        effect: (game) => {
+          game.extraFame = (game.extraFame || 0) + 3;
+          return '整理好的資料後來真的被球探拿去參考了。';
+        },
+      },
+      {
+        label: '謝謝就好，練習優先',
+        hint: '這週成長 +8%',
+        effect: (game) => {
+          game.weekBoost = { gain: 1.08, injury: 1 };
+          return '大家婉拒了好意，專心練球。';
+        },
+      },
+    ],
+  },
+  {
+    id: 'managerSnack',
+    title: '經理自己做點心給大家加油',
+    text: '一大盒手工餅乾放在休息室的桌上。',
+    available: (game) => activeManagers(game.team?.managers).length > 0,
+    options: [
+      {
+        label: '大家開心地吃',
+        hint: '士氣變好',
+        effect: (game) => {
+          cheerUp(game, 2);
+          return '休息室的氣氛整個變好了。';
+        },
+      },
+      {
+        label: '客氣婉拒，怕吃壞肚子',
+        hint: '4 個人的守備 +1',
+        effect: (game, rng) => {
+          const n = bump(someone(game, 4, rng), 'field', 1);
+          return `雖然婉拒了，但大家練得更專心。${n} 個人的守備進步了。`;
+        },
+      },
+    ],
+  },
+  {
+    id: 'madScientist',
+    title: '一個自稱「博士」的怪人出現在球場邊',
+    text: '他說他研究出一種特殊的訓練法，想找人試試看。',
+    options: [
+      {
+        label: '半信半疑讓他試試',
+        hint: '賭一把：可能大幅成長，也可能練到受傷',
+        effect: (game, rng) => {
+          const targets = someone(game, 3, rng);
+          if (!targets.length) return '結果隊上沒人願意當白老鼠。';
+          if (rng() < 0.5) {
+            const n = bump(targets, 'power', 6) + bump(targets, 'speed', 6);
+            return `博士的方法居然真的有效！${n} 人份的能力大幅進步，博士得意地笑著消失在夜色中。`;
+          }
+          const hurt = targets[0];
+          const r = injure(hurt, rng);
+          return `博士的「特訓法」練過頭了——${hurt.name} ${r.label}，要休養 ${r.weeks} 週。博士早就跑得不見人影了。`;
+        },
+      },
+      {
+        label: '婉拒，把他請出球場',
+        hint: '這週成長 +6%',
+        effect: (game) => {
+          game.weekBoost = { gain: 1.06, injury: 1 };
+          return '博士喃喃自語地走了，留下一句「總有一天你們會後悔」。';
+        },
+      },
+    ],
+  },
 ];
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);
@@ -663,12 +750,15 @@ export const eventById = (id) => EVENTS.find((e) => e.id === id);
 /**
  * 這一週要不要跳事件。現在是每個練習週都會遇到一個（chance 預設 1），
  * 保留 chance 參數只是方便以後想調整、或測試用。
+ * 有些事件有出現條件（例如經理相關的事件要先有經理在隊上），
+ * available 沒寫就當作一直都能出現。
  */
 export function rollEvent(game, rng = Math.random, chance = 1) {
   if (rng() >= chance) return null;
+  const eligible = EVENTS.filter((e) => !e.available || e.available(game));
   const recent = new Set(game.recentEvents || []);
-  const pool = EVENTS.filter((e) => !recent.has(e.id));
-  const ev = pickOne(pool.length ? pool : EVENTS, rng);
+  const pool = eligible.filter((e) => !recent.has(e.id));
+  const ev = pickOne(pool.length ? pool : eligible, rng);
   return ev.id;
 }
 
@@ -1198,6 +1288,113 @@ export function refreshExamEligibility(game) {
     if (!p) return false;
     return !EXAM_SAFE_GRADES.has(grade(p.gakuryoku));
   });
+}
+
+// ── 10. 球隊經理 ────────────────────────────────────────
+//
+// 一年招一個經理（一年級入學），三年後跟球員一樣畢業——
+// 常態會有 2〜3 個經理同時在（一、二、三年級各一個）。
+// 每個經理入學時就定了一個固定的特殊能力，好壞都有可能：
+// 大部分是幫忙（降低受傷、加快養傷、多一點注目度……），
+// 但也有機率是「幫倒忙」型的，這是真實的一部分，不是每個經理都好用。
+
+export const MANAGER_SKILLS = [
+  {
+    id: 'meticulous', name: '細心', good: true,
+    desc: '做事很仔細，練習和比賽的受傷機率都 −8%。',
+    apply: (m) => { m.matchInjury *= 0.92; m.trainInjury *= 0.92; },
+  },
+  {
+    id: 'healer', name: '照顧周到', good: true,
+    desc: '很會照顧養傷中的人，養傷速度 +15%。',
+    apply: (m) => { m.healSpeed *= 1.15; },
+  },
+  {
+    id: 'connections', name: '人面很廣', good: true,
+    desc: '認識很多校外的人，注目度 +3、招生名單多 1 個人。',
+    apply: (m) => { m.fame += 3; m.scoutExtra += 1; },
+  },
+  {
+    id: 'cheerleader', name: '氣氛帶動者', good: true,
+    desc: '很會炒熱氣氛，打練習賽的時候士氣多拉回 1 週。',
+    apply: (m) => { m.moraleRewind += 1; },
+  },
+  {
+    id: 'clumsy', name: '手忙腳亂', good: false,
+    desc: '常常狀況外，練習和比賽的受傷機率都 +10%。',
+    apply: (m) => { m.matchInjury *= 1.1; m.trainInjury *= 1.1; },
+  },
+  {
+    id: 'strict', name: '要求嚴格', good: false,
+    desc: '對來看的國中生太嚴格，好感度門檻反而變高。',
+    apply: (m) => { m.thresholdCut -= 3; },
+  },
+];
+
+export const managerSkillById = (id) => MANAGER_SKILLS.find((s) => s.id === id);
+
+/**
+ * 隨機生一個新經理。好能力的機率比較高（7 成），但壞能力是真的存在，
+ * 不是每個經理都對球隊有幫助——這是設計上刻意保留的風險。
+ */
+export function createManager(gradeYear, rng = Math.random) {
+  const wantGood = rng() < 0.7;
+  const pool = MANAGER_SKILLS.filter((s) => s.good === wantGood);
+  const skill = pickOne(pool.length ? pool : MANAGER_SKILLS, rng);
+  return {
+    id: `m${Math.floor(rng() * 1e9).toString(36)}`,
+    name: randomManagerName(rng),
+    gradeYear,
+    retired: false,
+    skillId: skill.id,
+  };
+}
+
+/** 還在隊上的經理（跟 active(players) 是一樣的概念） */
+export const activeManagers = (managers) => (managers || []).filter((m) => !m.retired);
+
+// ── 11. 畢業去向與校友錄 ────────────────────────────────
+//
+// 沒被職棒選走的畢業生（和畢業的經理）也該有個去處，不是就這樣消失。
+// 這裡抽出來的都是「花絮」等級的隨機結果，不影響任何數值，
+// 純粹是給校友錄畫面回顧用的。天賦、學力越高的人，越可能抽到
+// 「繼續打球」或「升學」這類比較風光的結果，但完全不保證。
+
+export const GRADUATE_PATHS = [
+  {
+    id: 'collegeBall', label: '考上大學，繼續打棒球',
+    weight: (p) => 2 + (p?.talent || 1),
+  },
+  {
+    id: 'shakaijin', label: '進了社會人球隊，繼續打球',
+    weight: (p) => 1 + Math.max(0, (p?.talent || 1) - 2),
+  },
+  {
+    id: 'college', label: '考上大學，專心讀書去了',
+    weight: (p) => 3 + (p?.gakuryoku ?? 50) / 20,
+  },
+  {
+    id: 'job', label: '畢業後直接就業',
+    weight: () => 3,
+  },
+  {
+    id: 'family', label: '回家繼承家業',
+    weight: () => 1,
+  },
+];
+
+export const graduatePathById = (id) => GRADUATE_PATHS.find((g) => g.id === id);
+
+/** 抽一個畢業去向。player 可以是球員或 null（經理沒有 talent／gakuryoku，就用預設值） */
+export function rollGraduatePath(player, rng = Math.random) {
+  const weighted = GRADUATE_PATHS.map((g) => ({ g, w: Math.max(0.1, g.weight(player)) }));
+  const total = weighted.reduce((n, x) => n + x.w, 0);
+  let r = rng() * total;
+  for (const { g, w } of weighted) {
+    r -= w;
+    if (r <= 0) return g.id;
+  }
+  return weighted[weighted.length - 1].g.id;
 }
 
 export { clamp };

@@ -4,6 +4,7 @@ import { renderWeek } from './week.js';
 import { renderRoster } from './roster.js';
 import { renderSchedule } from './schedule.js';
 import { renderLineup } from './lineup.js';
+import { renderAlumni } from './alumni.js';
 import { radarSVG } from './radar.js';
 import { renderTimeline } from './timeline.js';
 import { initPlayerTooltip } from './playerTooltip.js';
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'roster', name: '選手名單', render: renderRoster },
   { id: 'lineup', name: '先發名單', render: renderLineup },
   { id: 'schedule', name: '賽程表', render: renderSchedule },
+  { id: 'alumni', name: '校友錄', render: renderAlumni },
 ];
 
 /** 士氣一直顯示在主畫面上，不用切到「本週」才看得到 */
