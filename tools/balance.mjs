@@ -981,6 +981,23 @@ head('疲勞：打越多球越累，累了表現打折、更容易受傷，「�
   }
   console.log(`  一整年下來，用過 ${usedStarters.size} 個不同的先發投手`
     + `（要 > 1——疲勞夠高的話該讓別人上場，不會永遠同一個人）`);
+
+  // 野手也要一樣：排野手守位也要把疲勞算進去，不然替補永遠沒機會——
+  // 這裡故意讓 9 個候選人能力、適性完全相同（只差疲勞），8 個守備位置
+  // 一定會排除 1 人，驗證被排除的一定是疲勞見底的那個
+  const qPitcher = P.createPlayer({ gradeYear: 3, talent: 3, position: 'P' });
+  const qFielders = Array.from({ length: 9 }, () => P.createPlayer({
+    gradeYear: 3, talent: 3, position: 'SS',
+  }));
+  const refApt = { ...qFielders[0].aptitudes };
+  const refAbil = { ...qFielders[0].abilities };
+  qFielders.forEach((p) => { p.aptitudes = { ...refApt }; p.abilities = { ...refAbil }; p.fatigue = 0; });
+  const qTired = qFielders[0];
+  qTired.fatigue = 95;
+  const qLineup = MT.buildLineup([qPitcher, ...qFielders]);
+  const qTiredStarts = qLineup.order.some((o) => o.player.id === qTired.id);
+  console.log(`  9 個能力適性都相同的野手搶 8 個守位，疲勞見底的那個`
+    + `${qTiredStarts ? '還是上場了（要重新檢查）' : '被排除了（對）'}`);
 }
 
 head('宿敵對戰紀錄：同一個對手名字打滿 3 次才算宿敵');

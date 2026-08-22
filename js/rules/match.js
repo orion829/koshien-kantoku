@@ -131,10 +131,13 @@ export function buildLineup(players, {
   // 投球數超過一週上限的人還是要上場打擊，只是不能投球
   const blocked = new Set(cannotPitch);
   const condOf = (p) => conditions?.get(p.id) ?? 1;
+  // 排野手、選先發投手都要把疲勞算進去——不然疲勞怎麼設都沒用，
+  // 因為系統從來不會真的換人，替補永遠沒機會上場
+  const fitness = (p) => fatiguePenalty(p.fatigue) * condOf(p);
   // 排先發投手要把疲勞算進去——不然王牌會一直被排上場，
   // 疲勞怎麼設都沒用，因為系統從來不會真的換人。今天的狀態也算進去，
   // 狀態夠差的王牌，二號投手今天狀態好的話真的會把他換下來
-  const effectivePitching = (p) => overall(p) * fatiguePenalty(p.fatigue) * condOf(p);
+  const effectivePitching = (p) => overall(p) * fitness(p);
   const pitchers = pool
     .filter((p) => isPitcher(p) && !blocked.has(p.id))
     .sort((a, b) => effectivePitching(b) - effectivePitching(a));
@@ -170,7 +173,7 @@ export function buildLineup(players, {
     if (!pos) break;
     const best = rest
       .filter((p) => !takenPlayers.has(p.id))
-      .sort((a, b) => aptScore(b, pos) * condOf(b) - aptScore(a, pos) * condOf(a))[0];
+      .sort((a, b) => aptScore(b, pos) * fitness(b) - aptScore(a, pos) * fitness(a))[0];
     if (!best) continue;
     takenPlayers.add(best.id);
     bySlot[i] = { player: best, position: pos };
@@ -180,7 +183,7 @@ export function buildLineup(players, {
   // 沒有自訂打線的話，維持原本「打擊好的排前面」（今天狀態也算進去）；
   // 有自訂就照玩家排的順序
   const fielders = customOrder ? filled
-    : filled.sort((a, b) => batRating(b.player) * condOf(b.player) - batRating(a.player) * condOf(a.player));
+    : filled.sort((a, b) => batRating(b.player) * fitness(b.player) - batRating(a.player) * fitness(a.player));
 
   // 打線：投手放第九棒（甲子園沒有指定打擊）
   const order = fielders.concat([{ player: starter, position: 'P' }]);

@@ -641,7 +641,7 @@ export function renderWeek(root, game, onChange) {
            ${resultTable(game)}
            ${investPanel(game)}
            <button type="button" class="btn btn--wide" data-summary="download">
-             下載這一年的成績單（.svg 圖檔）
+             下載生涯成績單（.svg 圖檔）
            </button>` : ''}`;
 
   root.innerHTML = `
@@ -669,7 +669,7 @@ export function renderWeek(root, game, onChange) {
   bindSummaryButtons(root, game);
 }
 
-/** 下載成績單的按鈕。純粹存檔案，不會推進遊戲，所以不走 takeAction */
+/** 下載生涯成績單的按鈕。純粹存檔案，不會推進遊戲，所以不走 takeAction */
 function bindSummaryButtons(root, game) {
   root.querySelectorAll('[data-summary="download"]').forEach((b) => {
     b.addEventListener('click', () => downloadSummary(game));
