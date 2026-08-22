@@ -54,6 +54,7 @@ function playerRow(p, registered, examBanned, lineupInfo) {
   const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
   const hurt = isInjured(p);
   const banned = examBanned?.has(p.id);
+  const jinxed = (p.badConditionGames || 0) > 0;
   const tired = (p.fatigue || 0) >= 50;
 
   return `
@@ -70,6 +71,7 @@ function playerRow(p, registered, examBanned, lineupInfo) {
       ${lineupTag(p, lineupInfo) ? `<span class="lineup-tag">${lineupTag(p, lineupInfo)}</span>` : ''}
       ${hurt ? `<span class="status-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
       ${banned ? '<span class="status-badge">📕 停賽中・學力不及格</span>' : ''}
+      ${jinxed ? `<span class="status-badge">💫 被知名YouTuber點名關注・還要 ${p.badConditionGames} 場比賽狀態低迷</span>` : ''}
       ${tired ? `<span class="status-badge status-badge--tired">🥱 ${fatigueLabel(p.fatigue)}</span>` : ''}
       <div class="player__stats">${chips}
         <span class="stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>

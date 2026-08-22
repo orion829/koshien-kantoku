@@ -1663,13 +1663,18 @@ export function rollWonderEvent(game, fame, rng = Math.random) {
   return pickOne(pool, rng);
 }
 
-// ── 13b. 奇妙事件（練習週版：園遊會、運動會、戀愛、惡搞）─────
+// ── 13b. 奇妙事件（練習週版：學園祭、運動會、戀愛、惡搞）─────
 //
 // 跟上面比賽週的奇妙事件是同一個概念，只是換成練習週會遇到的花絮——
 // 不用玩家選，練完當週的練習之後直接跳出結果，跟「突發事件」（兩個
 // 選項要玩家選）是不同的東西，這個純粹是錦上添花的驚喜。
 // 「學姐回來開演唱會」要校友錄裡真的有一個當偶像的經理才會出現，
 // 呼應第 12 節畢業生回訪——她已經畢業了，這是難得的返校演出。
+//
+// 學園祭、運動會這種一年只會辦一次的活動，掛了 yearlyGroup 標記——
+// 同一個 yearlyGroup 一年只會抽中一次（不管抽到的是哪一個子事件），
+// 抽過之後那個 group 要等到明年才會再出現，不然學園祭一年跳好幾次
+// 就很奇怪。
 
 // 設 1 是刻意的——每個練習週都要有花絮，跟比賽週那邊一樣
 export const TRAINING_WONDER_EVENT_CHANCE = 1;
@@ -1678,12 +1683,13 @@ export const TRAINING_WONDER_EVENTS = [
   {
     id: 'idolConcert',
     name: '學姐回來開迷你演唱會',
+    yearlyGroup: 'schoolFestival',
     available: (game) => (game.alumni || []).some((a) => a.role === 'manager' && a.path === 'idol'),
     apply: (game) => {
       game.extraFame = (game.extraFame || 0) + 10;
       cheerUp(game, 3);
       return {
-        note: '園遊會那天，當偶像的學姐回母校開了一場迷你演唱會，全校擠得水洩不通，'
+        note: '學園祭那天，當偶像的學姐回母校開了一場迷你演唱會，全校擠得水洩不通，'
           + '注目度 +10，士氣也跟著沸騰起來。',
         negative: false,
       };
@@ -1692,6 +1698,7 @@ export const TRAINING_WONDER_EVENTS = [
   {
     id: 'sportsDay',
     name: '運動會',
+    yearlyGroup: 'sportsDay',
     available: () => true,
     apply: (game, rng) => {
       const picked = someone(game, 6, rng);
@@ -1704,16 +1711,18 @@ export const TRAINING_WONDER_EVENTS = [
   },
   {
     id: 'schoolFairStall',
-    name: '園遊會擺攤',
+    name: '學園祭擺攤',
+    yearlyGroup: 'schoolFestival',
     available: () => true,
     apply: (game) => {
       game.extraFame = (game.extraFame || 0) + 5;
-      return { note: '棒球隊在園遊會擺了攤，意外大成功，還上了校內新聞，注目度 +5。', negative: false };
+      return { note: '棒球隊在學園祭擺了攤，意外大成功，還上了校內新聞，注目度 +5。', negative: false };
     },
   },
   {
     id: 'confession',
-    name: '園遊會告白事件',
+    name: '學園祭告白事件',
+    yearlyGroup: 'schoolFestival',
     available: (game) => canPlay(game).length > 0,
     apply: (game, rng) => {
       const p = pickOne(canPlay(game), rng);
@@ -1722,13 +1731,13 @@ export const TRAINING_WONDER_EVENTS = [
         const stat = stats[Math.floor(rng() * stats.length)];
         bump([p], stat.id, 3);
         return {
-          note: `${p.name} 在園遊會被告白，還答應了。戀愛的力量讓他這幾天狀態特別好，${stat.name}進步了。`,
+          note: `${p.name} 在學園祭被告白，還答應了。戀愛的力量讓他這幾天狀態特別好，${stat.name}進步了。`,
           negative: false,
         };
       }
       p.fatigue = clamp((p.fatigue || 0) + 8, 0, 100);
       return {
-        note: `${p.name} 在園遊會告白失敗了，這幾天有點心不在焉，練習有點恍神。`,
+        note: `${p.name} 在學園祭告白失敗了，這幾天有點心不在焉，練習有點恍神。`,
         negative: true,
       };
     },
@@ -1791,10 +1800,11 @@ export const TRAINING_WONDER_EVENTS = [
   {
     id: 'emptyStall',
     name: '擺攤生意冷清',
+    yearlyGroup: 'schoolFestival',
     available: () => true,
     apply: (game) => {
       game.extraFame = Math.max(0, (game.extraFame || 0) - 3);
-      return { note: '園遊會擺的攤沒什麼人來，大家有點小尷尬，注目度 −3。', negative: true };
+      return { note: '學園祭擺的攤沒什麼人來，大家有點小尷尬，注目度 −3。', negative: true };
     },
   },
   {
@@ -1826,6 +1836,46 @@ export const TRAINING_WONDER_EVENTS = [
       return { note, negative: true };
     },
   },
+  {
+    id: 'proScoutVisit',
+    name: '職棒球探默默關注',
+    available: (game) => canPlay(game).length > 0,
+    apply: (game, rng) => {
+      const p = pickOne(canPlay(game), rng);
+      const gain = 6 + Math.floor(rng() * 8);
+      p.scoutAttention = Math.min(100, (p.scoutAttention || 0) + gain);
+      return {
+        note: `有個職棒球探默默來看了幾次球，${p.name} 被記在筆記本上了，球探注目度 +${gain}。`,
+        negative: false,
+      };
+    },
+  },
+  {
+    id: 'universityInvite',
+    name: '大學球隊來邀約練習賽',
+    available: () => true,
+    apply: (game, rng) => {
+      const picked = someone(game, 5, rng);
+      const n = bump(picked, 'power', 2) + bump(picked, 'control', 2);
+      return {
+        note: `附近的大學棒球隊來邀約練習賽，跟程度更高的對手交手，${n} 人次悄悄變好了。`,
+        negative: false,
+      };
+    },
+  },
+  {
+    id: 'corporateTeamVisit',
+    name: '社會人球隊來交流',
+    available: () => true,
+    apply: (game, rng) => {
+      const picked = someone(game, 5, rng);
+      const n = bump(picked, 'stamina', 2) + bump(picked, 'field', 2);
+      return {
+        note: `附近的社會人球隊來交流，老練的球風讓大家學到不少，${n} 人次悄悄變好了。`,
+        negative: false,
+      };
+    },
+  },
 ];
 
 export const trainingWonderEventById = (id) => TRAINING_WONDER_EVENTS.find((e) => e.id === id);
@@ -1833,11 +1883,21 @@ export const trainingWonderEventById = (id) => TRAINING_WONDER_EVENTS.find((e) =
 /**
  * 這一週的練習要不要跳奇妙事件。跟比賽週那個獨立，兩邊互不影響。
  * fame 要先算好傳進來，理由跟 rollWonderEvent 一樣（避免循環 import）。
+ *
+ * yearlyGroup 的事件（學園祭、運動會）一年只會抽中一次——抽到之後
+ * 把這個 group 標記成「這一年用過了」，同一年不會再抽到同一組的
+ * 任何一個子事件，明年才會重新開放。
  */
 export function rollTrainingWonderEvent(game, fame, rng = Math.random) {
-  const pool = TRAINING_WONDER_EVENTS.filter((e) => e.available(game, fame));
+  const usedThisYear = (group) => (game.yearlyEventsUsed || {})[group] === game.cursor.year;
+  const pool = TRAINING_WONDER_EVENTS
+    .filter((e) => e.available(game, fame) && (!e.yearlyGroup || !usedThisYear(e.yearlyGroup)));
   if (!pool.length || rng() >= TRAINING_WONDER_EVENT_CHANCE) return null;
   const ev = pickOne(pool, rng);
+  if (ev.yearlyGroup) {
+    game.yearlyEventsUsed = game.yearlyEventsUsed || {};
+    game.yearlyEventsUsed[ev.yearlyGroup] = game.cursor.year;
+  }
   const { note, negative } = ev.apply(game, rng);
   return {
     id: ev.id, name: ev.name, desc: note, negative: !!negative,

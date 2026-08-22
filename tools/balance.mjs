@@ -1206,6 +1206,16 @@ head('奇妙事件：注目度門檻要真的擋住「被知名YouTuber盯上」
   console.log(`  10 局 × 15 年，各奇妙事件觸發次數：${JSON.stringify(wonderCounts)}`);
   console.log(`  hihi 在注目度不夠時觸發：${hihiEarly} 次（要是 0）　`
     + `idolConcert 在沒有偶像經理校友時觸發：${idolConcertBad} 次（要是 0）　當掉 ${crash10} 次（要是 0）`);
+
+  // 學園祭（idolConcert／schoolFairStall／confession／emptyStall 共用同一個
+  // yearlyGroup）跟運動會一年最多只會抽中一次——10 局 × 15 年 = 150 個
+  // 隊伍年，group 總次數不該超過 150，不然就是 yearlyGroup 的機制壞了
+  const schoolFestivalTotal = ['idolConcert', 'schoolFairStall', 'confession', 'emptyStall']
+    .reduce((n, id) => n + (wonderCounts[id] || 0), 0);
+  const teamYears = 10 * 15;
+  console.log(`  學園祭系列（idolConcert+schoolFairStall+confession+emptyStall）共 ${schoolFestivalTotal} 次`
+    + `（${teamYears} 個隊伍年，要 <= ${teamYears}，才算一年最多一次）`);
+  console.log(`  運動會共 ${wonderCounts.sportsDay || 0} 次（要 <= ${teamYears}，才算一年最多一次）`);
 }
 
 console.log('');
