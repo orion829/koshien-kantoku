@@ -175,10 +175,10 @@ export function gameCard(r, index, open) {
     </section>`;
 }
 
-/** 一週的比賽（最多三場） */
+/** 一週的比賽（最多三場）。預設全部收合，點了才展開 */
 export function weekGames(results) {
   return `<div class="games">
-    ${results.map((r, i) => gameCard(r, i, i === results.length - 1)).join('')}
+    ${results.map((r, i) => gameCard(r, i, false)).join('')}
   </div>`;
 }
 

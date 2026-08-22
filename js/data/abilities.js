@@ -134,6 +134,13 @@ export const SKILLS = [
   { id: 'lateBloom', name: '越投越強', role: 'pitcher', good: true, desc: '比賽後半局能力上升' },
   { id: 'ironArm', name: '鐵臂', role: 'pitcher', good: true, desc: '耐力恢復比別人快', req: { stat: 'stamina', min: 50 } },
   { id: 'durable', name: '不易受傷', role: 'pitcher', good: true, desc: '不容易受傷' },
+  { id: 'poise', name: '滿壘不亂', role: 'pitcher', good: true, desc: '滿壘的時候，打者反而在他面前發揮不出來' },
+  { id: 'groundInduce', name: '封鎖長打', role: 'pitcher', good: true, desc: '很會製造滾地球，不容易被打出長打', req: { stat: 'control', min: 45 } },
+  { id: 'firstStrike', name: '搶好球數', role: 'pitcher', good: true, desc: '很會搶好球數，保送率下降', req: { stat: 'control', min: 50 } },
+  { id: 'intimidator', name: '壓迫感十足', role: 'pitcher', good: true, desc: '球有壓迫感，打者容易提早出棒被三振', req: { stat: 'velocity', min: 55 } },
+  { id: 'changeSpeed', name: '變速調節', role: 'pitcher', good: true, desc: '速差抓得好，打者不容易發揮力量', req: { stat: 'breaking', min: 40 } },
+  { id: 'bigGame', name: '大賽型', role: 'pitcher', good: true, desc: '球隊落後的時候反而更專注' },
+  { id: 'clutchPitcher', name: '大心臟', role: 'pitcher', good: true, desc: '得點圈有人時能力上升' },
 
   // 投手 壞能力
   { id: 'light', name: '輕球', role: 'pitcher', good: false, desc: '球質輕，容易被打遠', req: { stat: 'velocity', max: 55 } },
@@ -141,6 +148,9 @@ export const SKILLS = [
   { id: 'slowStart', name: '慢熱', role: 'pitcher', good: false, desc: '第一局能力下降' },
   { id: 'hotHead', name: '暴躁', role: 'pitcher', good: false, desc: '被打之後能力下降' },
   { id: 'fragile', name: '易受傷', role: 'pitcher', good: false, desc: '容易受傷' },
+  { id: 'homeRunProne', name: '一球定生死', role: 'pitcher', good: false, desc: '投球比較平，容易被打全壘打', req: { stat: 'velocity', max: 60 } },
+  { id: 'lateFade', name: '後段疲軟', role: 'pitcher', good: false, desc: '比賽後段能力明顯下滑' },
+  { id: 'chokeArtist', name: '大賽軟', role: 'pitcher', good: false, desc: '球隊落後的時候更容易自亂陣腳' },
 
   // 打者 好能力
   { id: 'average', name: '安打製造機', role: 'batter', good: true, desc: '推打時容易打出安打', req: { stat: 'meet', min: 50 } },
@@ -153,6 +163,14 @@ export const SKILLS = [
   { id: 'steal', name: '盜壘高手', role: 'batter', good: true, desc: '盜壘成功率高', req: { stat: 'speed', min: 50 } },
   { id: 'throwing', name: '傳球精準', role: 'batter', good: true, desc: '傳球不容易失誤', req: { stat: 'arm', min: 45 } },
   { id: 'glove', name: '接球穩', role: 'batter', good: true, desc: '接球不容易失誤', req: { stat: 'catch', min: 50 } },
+  { id: 'earlyBird', name: '開賽衝刺', role: 'batter', good: true, desc: '比賽前兩局特別會打' },
+  { id: 'grinder', name: '越晚越拚', role: 'batter', good: true, desc: '比賽後段特別會打' },
+  { id: 'speedster', name: '飛毛腿型', role: 'batter', good: true, desc: '很會把一壘打拉成二壘打', req: { stat: 'speed', min: 55 } },
+  { id: 'patient', name: '耐心選球', role: 'batter', good: true, desc: '不容易被三振', req: { stat: 'meet', min: 40 } },
+  { id: 'bigStage', name: '大心臟', role: 'batter', good: true, desc: '球隊落後的時候反而打得更好' },
+  { id: 'switchHit', name: '左右開弓', role: 'batter', good: true, desc: '不管對方是左投右投都不受影響' },
+  { id: 'veteran', name: '老練', role: 'batter', good: true, desc: '經驗老到，比賽再怎麼緊繃也不太會慌' },
+  { id: 'groundBallSafe', name: '不容易打雙殺', role: 'batter', good: true, desc: '打滾地球的時候比較不會雙殺', req: { stat: 'speed', min: 45 } },
 
   // 打者 壞能力
   { id: 'whiff', name: '愛揮空', role: 'batter', good: false, desc: '容易被三振', req: { stat: 'meet', max: 55 } },
@@ -160,6 +178,9 @@ export const SKILLS = [
   { id: 'error', name: '容易失誤', role: 'batter', good: false, desc: '守備容易失誤', req: { stat: 'catch', max: 55 } },
   { id: 'weakVsLeft', name: '怕左投', role: 'batter', good: false, desc: '對左投手能力下降' },
   { id: 'weakPinch', name: '代打弱', role: 'batter', good: false, desc: '代打時能力下降' },
+  { id: 'coldStart', name: '慢熱型', role: 'batter', good: false, desc: '比賽前兩局常常打不好' },
+  { id: 'fade', name: '後段疲軟', role: 'batter', good: false, desc: '比賽後段常常打不好' },
+  { id: 'stagestruck', name: '大賽緊張', role: 'batter', good: false, desc: '球隊落後的時候更容易慌' },
 ];
 
 export const skillById = (id) => SKILLS.find((s) => s.id === id);

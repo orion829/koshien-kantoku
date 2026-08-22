@@ -331,6 +331,19 @@ function scoutingPanel(game) {
     <ul class="cands">${rows}</ul>`;
 }
 
+/** 奇妙事件的橫幅——每週都會有，要夠顯眼，不能被淹沒在一堆數字裡 */
+function wonderBanner(w) {
+  if (!w) return '';
+  return `
+    <div class="wonder-banner wonder-banner--${w.negative ? 'bad' : 'good'}">
+      <span class="wonder-banner__icon">🎲</span>
+      <div class="wonder-banner__body">
+        <b class="wonder-banner__name">${w.name}</b>
+        <p class="wonder-banner__desc">${w.desc}</p>
+      </div>
+    </div>`;
+}
+
 /** 上一週做了什麼、隊伍長了多少。這是玩家最想看到的回饋 */
 function lastResultBox(game) {
   const l = game.log[game.log.length - 1];
@@ -338,20 +351,16 @@ function lastResultBox(game) {
 
   if (l.results) {
     const lost = l.results.some((r) => !r.won);
-    const w = l.wonderEvent;
     return `
       <div class="last last--${lost ? 'lose' : 'win'}">
         <span class="last__head">上一週：${l.event}</span>
-        ${w ? `<p class="last__note last__note--wonder${w.negative ? ' last__note--bad' : ''}">
-          🎲 奇妙事件：<b>${w.name}</b>　${w.desc}</p>` : ''}
+        ${wonderBanner(l.wonderEvent)}
         ${weekGames(l.results)}
         ${lost ? '<p class="last__note">被淘汰了。後面的比賽週會變成練習週。</p>' : ''}
       </div>`;
   }
 
-  const w = l.wonderEvent;
-  const wonderTag = w ? `<p class="last__note last__note--wonder${w.negative ? ' last__note--bad' : ''}">
-    🎲 奇妙事件：<b>${w.name}</b>　${w.desc}</p>` : '';
+  const wonderTag = wonderBanner(l.wonderEvent);
 
   if (l.scoutResult) {
     const j = l.scoutResult.joined.map((x) => `

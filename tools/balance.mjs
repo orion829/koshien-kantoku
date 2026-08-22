@@ -570,6 +570,88 @@ head('多少年拿冠軍：認真玩（有練、優先買升級）大概幾年�
   console.log('  ※ 目標：普通約第 19 年、地獄約第 21 年（見 game.js 的 OPPONENT 註解）');
 }
 
+head('春甲／夏甲／秋季大賽：分別平均要花幾年才第一次拿冠軍');
+{
+  // 跟上面「多少年拿冠軍」同一套「認真玩」邏輯，但不是抽中夏季冠軍就停——
+  // 秋季縣大賽、春季甲子園都各自記錄「第一次拿冠軍是第幾年」，跑到
+  // 四種都拿過、或跑到 maxYears 為止
+  const pick4 = (a) => a[Math.floor(Math.random() * a.length)];
+  const menus4 = ['batting', 'power', 'fielding', 'throwing', 'running', 'pitching', 'breaking', 'physical'];
+  const priority4 = ['academy', 'facility', 'dorm', 'clinic', 'network', 'reputation'];
+
+  function simAllChampions(maxYears, prefectureId) {
+    const g = ST.createGame({
+      managerName: '全冠測試', schoolName: '全冠高校', prefectureId, numYears: maxYears,
+    });
+    let guard = 0;
+    let trainCounter = 0;
+    // 跟「春季甲子園漏斗」那段一樣，跑完整段之後再回頭看 g.progress，
+    // 不要在迴圈中途邊跑邊記——之前試過中途記錄，春甲冠軍次數會不合理地
+    // 掉到 0，原因還沒抓到，穩妥起見改成跟已經驗證過的寫法一致
+    while (g.cursor.year <= maxYears && guard < 30000) {
+      guard += 1;
+      if (g.pendingDraft?.length) { RG.choosePerk(g, pick4(g.pendingDraft)); continue; }
+      if (g.pendingTransfer) { RG.resolveTransfer(g, Math.random() < 0.5 ? 'warm' : 'quiet'); continue; }
+      if (g.pendingAlumniVisit) { RG.resolveAlumniVisit(g, Math.random() < 0.5 ? 'coach' : 'signing'); continue; }
+      if (g.pendingWildVisit) { RG.resolveWildVisit(g); continue; }
+      if (g.pendingAwaken) { RG.resolveAwaken(g, Math.random() < 0.7 ? 'bet' : 'pass'); continue; }
+      if (g.pendingEvent) { RG.resolveEvent(g, Math.floor(Math.random() * 2)); continue; }
+      if (g.tacticChoices?.length && !g.tactic) { g.tactic = pick4(g.tacticChoices); continue; }
+
+      const affordable4 = RG.UPGRADES.filter((u) => (g.legacyPoints || 0) >= RG.upgradeCost(g, u.id));
+      if (affordable4.length) {
+        const byPriority4 = priority4.map((id) => affordable4.find((u) => u.id === id)).filter(Boolean);
+        RG.buyUpgrade(g, (byPriority4[0] || affordable4[0]).id);
+        continue;
+      }
+
+      const w = G.currentWeek(g);
+      if (w.kind === 'training') {
+        const menuActs = G.availableActions(g).filter((a) => a.kind === 'menu');
+        const wantMenu = menus4[trainCounter % menus4.length];
+        const act = menuActs.find((a) => a.id === wantMenu) || pick4(menuActs);
+        trainCounter += 1;
+        G.takeAction(g, act.id);
+      } else {
+        G.takeAction(g, null);
+      }
+    }
+    const first = {
+      autumn: null, autumnArea: null, senbatsu: null, koshien: null,
+    };
+    g.progress.forEach((p, i) => {
+      const year = i + 1;
+      if (p.autumn?.champion && first.autumn === null) first.autumn = year;
+      if (p.autumnArea?.champion && first.autumnArea === null) first.autumnArea = year;
+      if (p.senbatsu?.champion && first.senbatsu === null) first.senbatsu = year;
+      if (p.koshien?.champion && first.koshien === null) first.koshien = year;
+    });
+    return first;
+  }
+
+  const avgOf = (arr) => (arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—');
+  for (const [label, pref] of [['普通(贏6場)', 'aomori'], ['地獄(贏8場)', 'aichi']]) {
+    const N = 30; const maxYears = 40;
+    const buckets = {
+      autumn: [], autumnArea: [], senbatsu: [], koshien: [],
+    };
+    const never = {
+      autumn: 0, autumnArea: 0, senbatsu: 0, koshien: 0,
+    };
+    for (let i = 0; i < N; i += 1) {
+      const first = simAllChampions(maxYears, pref);
+      Object.keys(buckets).forEach((k) => {
+        if (first[k] === null) never[k] += 1; else buckets[k].push(first[k]);
+      });
+    }
+    console.log(`  ${label}（${N} 局、最多跑 ${maxYears} 年）`);
+    console.log(`    秋季縣大賽冠軍　平均第 ${avgOf(buckets.autumn)} 年（${never.autumn}/${N} 沒拿到）`);
+    console.log(`    秋季地區大賽冠軍　平均第 ${avgOf(buckets.autumnArea)} 年（${never.autumnArea}/${N} 沒拿到）`);
+    console.log(`    春季甲子園冠軍　平均第 ${avgOf(buckets.senbatsu)} 年（${never.senbatsu}/${N} 沒拿到）`);
+    console.log(`    夏季甲子園冠軍　平均第 ${avgOf(buckets.koshien)} 年（${never.koshien}/${N} 沒拿到）`);
+  }
+}
+
 head('春季甲子園漏斗：三年級剛退隊、用弱化過的名單去拚秋季縣冠軍，會不會比夏天難太多');
 {
   // 跟上面「多少年拿冠軍」同一套「認真玩」邏輯，但這次不是抽中冠軍就停，
@@ -808,6 +890,24 @@ head('選手狀態：今天的手感要真的能讓板凳把先發擠下去，�
     console.log(`  當掉了：${e.message}`);
   }
   console.log(`  3 年局跑完當掉：${crash0 ? '壞了' : 'OK'}　用過 ${starters0.size} 個不同的先發投手（要 > 1）`);
+
+  // 被知名 YouTuber 點名關注：門檻要真的擋住、狀態真的會被強制變差
+  const josh = RG.trainingWonderEventById('targetedByYoutuber');
+  console.log(`  fame=39：targetedByYoutuber 可用=${josh.available({ team: { players: [] } }, 39)}（要 false）`);
+  const p3 = P.createPlayer({ gradeYear: 2, talent: 3, position: 'SS' });
+  const gJosh = { team: { players: [p3] }, extraFame: 0 };
+  let injuredCount = 0;
+  const trials3 = 400;
+  for (let i = 0; i < trials3; i += 1) {
+    p3.injury = null;
+    p3.badConditionGames = 0;
+    josh.apply(gJosh, Math.random);
+    if (p3.injury) injuredCount += 1;
+  }
+  console.log(`  套用效果之後 badConditionGames=${p3.badConditionGames}（要是 2）`);
+  const condAfter = MT.rollConditions([p3], Math.random).get(p3.id);
+  console.log(`  接下來那場比賽重抽狀態：${condAfter === MT.CONDITION_TIERS.find((t) => t.id === 'terrible').mult ? '強制絕不好調（對）' : '沒有被強制（要重新檢查）'}`);
+  console.log(`  ${trials3} 次裡受傷 ${injuredCount} 次，機率 ${((injuredCount / trials3) * 100).toFixed(0)}%（設計上約 35%）`);
 }
 
 head('疲勞：打越多球越累，累了表現打折、更容易受傷，「休息」能大幅消除');

@@ -1599,8 +1599,11 @@ export function resolveWildVisit(game) {
 // 不用玩家做任何選擇。有正面也有負面，其中「被知名 YouTuber 盯上」
 // 需要注目度夠高才會出現——名氣越大，招來的關注不見得都是好事。
 
-/** 每個比賽週跳出奇妙事件的機率（前提是至少有一個事件的條件成立） */
-export const WONDER_EVENT_CHANCE = 0.15;
+/**
+ * 每個比賽週跳出奇妙事件的機率（前提是至少有一個事件的條件成立）。
+ * 設 1 是刻意的——每週都要有花絮，這樣才有「每週都在發生什麼事」的感覺。
+ */
+export const WONDER_EVENT_CHANCE = 1;
 
 export const WONDER_EVENTS = [
   {
@@ -1668,7 +1671,8 @@ export function rollWonderEvent(game, fame, rng = Math.random) {
 // 「學姐回來開演唱會」要校友錄裡真的有一個當偶像的經理才會出現，
 // 呼應第 12 節畢業生回訪——她已經畢業了，這是難得的返校演出。
 
-export const TRAINING_WONDER_EVENT_CHANCE = 0.1;
+// 設 1 是刻意的——每個練習週都要有花絮，跟比賽週那邊一樣
+export const TRAINING_WONDER_EVENT_CHANCE = 1;
 
 export const TRAINING_WONDER_EVENTS = [
   {
@@ -1800,6 +1804,26 @@ export const TRAINING_WONDER_EVENTS = [
     apply: (game) => {
       cheerUp(game, 1);
       return { note: '一個不知道哪一屆的學長突然出現在球場邊加油，大家精神都來了。', negative: false };
+    },
+  },
+  {
+    id: 'targetedByYoutuber',
+    name: '被知名棒球YouTuber點名關注了',
+    // 隊伍本身要先小有名氣才會被盯上，跟「被知名YouTuber盯上」（比賽週
+    // 版，60）是同一條「越紅越麻煩」路線上更早的一階，但這次是點名
+    // 「某一個人」，不是全隊——比賽週那個是全隊那天都不自在，
+    // 這個是單一球員接下來幾場比賽都會受影響。
+    available: (game, fame) => fame >= 40 && canPlay(game).length > 0,
+    apply: (game, rng) => {
+      const p = pickOne(canPlay(game), rng);
+      p.badConditionGames = (p.badConditionGames || 0) + 2;
+      let note = `一位 J 開頭、超有名的棒球 YouTuber 在影片裡點名關注了 ${p.name}，`
+        + '壓力一下子變好大，接下來兩場比賽狀態應該會很差。';
+      if (rng() < 0.35) {
+        const inj = injure(p, rng);
+        note += `而且練習時一個閃神受傷了——${inj.label}（${inj.cause}），要休養 ${inj.weeks} 週。`;
+      }
+      return { note, negative: true };
     },
   },
 ];

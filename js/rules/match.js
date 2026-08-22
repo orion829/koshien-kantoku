@@ -80,12 +80,24 @@ function rollConditionTier(rng) {
   return CONDITION_TIERS[CONDITION_TIERS.length - 1];
 }
 
+const TERRIBLE_MULT = CONDITION_TIERS.find((t) => t.id === 'terrible').mult;
+
 /**
  * 幫一批球員各自抽一次「今天的狀態」，回傳 Map<球員id, 能力倍率>。
  * 每一場比賽都要重抽一次——這是「今天」的狀態，不是長期的。
+ *
+ * p.badConditionGames：有些奇妙事件（例如被知名 YouTuber 點名關注）
+ * 會讓某個球員接下來幾場比賽狀態強制變差，不是隨機抽——這裡每算一場
+ * 比賽就消耗一場額度，額度用完就恢復正常隨機抽。
  */
 export function rollConditions(players, rng = Math.random) {
-  return new Map(players.map((p) => [p.id, rollConditionTier(rng).mult]));
+  return new Map(players.map((p) => {
+    if (p.badConditionGames > 0) {
+      p.badConditionGames -= 1;
+      return [p.id, TERRIBLE_MULT];
+    }
+    return [p.id, rollConditionTier(rng).mult];
+  }));
 }
 
 /** 倍率換回狀態等級（給畫面顯示用，「普通」不特別顯示） */
@@ -229,7 +241,11 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   // om = 進攻方的加成、dm = 防守方的加成（傳統 ＋ 作戰 ＋ 對手特色）
   const om = ctx.off;
   const dm = ctx.def;
-  const stuff = pitcherStuff(pitcher, pitches, dm.staminaMult) * ctx.pitchCondition + ctx.pitchForm + dm.stuff;
+  let stuff = pitcherStuff(pitcher, pitches, dm.staminaMult) * ctx.pitchCondition + ctx.pitchForm + dm.stuff;
+  if (ctx.defTrailing && has(pitcher, 'bigGame')) stuff += 6;
+  if (ctx.defTrailing && has(pitcher, 'chokeArtist')) stuff -= 6;
+  if (ctx.inning >= 7 && has(pitcher, 'lateFade')) stuff -= 5;
+  if (ctx.scoring && has(pitcher, 'clutchPitcher')) stuff += 6;
   const b = batter.abilities;
 
   // 關鍵時刻的加成 ＋ 今天的狀態（球隊整體 ctx.batForm ＋ 個人手感 ctx.batCondition）＋ 加成表
@@ -240,10 +256,23 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   if (ctx.scoring && has(batter, 'clutch')) { meet += 8; power += 8; }
   if (ctx.loaded && has(batter, 'bases')) { meet += 10; power += 10; }
   if (ctx.scoring && has(pitcher, 'vsPinch')) meet -= 8;
+  if (ctx.loaded && has(pitcher, 'poise')) { meet -= 6; power -= 6; }
+  if (ctx.inning <= 2 && has(batter, 'earlyBird')) { meet += 5; power += 5; }
+  if (ctx.inning <= 2 && has(batter, 'coldStart')) { meet -= 5; power -= 5; }
+  if (ctx.inning >= 7 && has(batter, 'grinder')) { meet += 5; power += 5; }
+  if (ctx.inning >= 7 && has(batter, 'fade')) { meet -= 5; power -= 5; }
+  if (ctx.trailing && has(batter, 'bigStage')) { meet += 4; power += 4; }
+  if (ctx.trailing && has(batter, 'stagestruck')) { meet -= 4; power -= 4; }
+  // 對左投手的加減——會左右開弓的人不受影響
+  if (pitcher.throws === 'L' && !has(batter, 'switchHit')) {
+    if (has(batter, 'vsLeft')) { meet += 6; power += 6; }
+    if (has(batter, 'weakVsLeft')) { meet -= 6; power -= 6; }
+  }
 
   // 1) 四壞
   let bb = 0.085 + (55 - (pitcher.abilities.control + dm.control)) * 0.0022 + om.eye;
   if (has(pitcher, 'walks')) bb += 0.035;
+  if (has(pitcher, 'firstStrike')) bb -= 0.02;
   if (has(batter, 'eye')) bb += 0.03;
   const nPitches = () => 2 + Math.floor(rng() * 3);
   if (rng() < clamp(bb, 0.02, 0.28)) return { kind: 'bb', pitches: 5 + Math.floor(rng() * 3) };
@@ -251,8 +280,10 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   // 2) 三振
   let k = 0.135 + (stuff - meet) * 0.0045;
   if (has(pitcher, 'strikeout')) k += 0.04;
+  if (has(pitcher, 'intimidator')) k += 0.03;
   if (has(batter, 'whiff')) k += 0.05;
   if (has(batter, 'average')) k -= 0.03;
+  if (has(batter, 'patient')) k -= 0.025;
   if (rng() < clamp(k, 0.03, 0.5)) return { kind: 'k', pitches: 4 + Math.floor(rng() * 3) };
 
   // 3) 打進場內：是不是安打
@@ -273,13 +304,18 @@ function atBat(batter, pitcher, pitches, defence, ctx, rng) {
   if (has(batter, 'slugger')) hr += 0.02;
   if (has(pitcher, 'heavy')) hr -= 0.012;
   if (has(pitcher, 'light')) hr += 0.02;
+  if (has(pitcher, 'changeSpeed')) hr -= 0.015;
+  if (has(pitcher, 'homeRunProne')) hr += 0.02;
   if (rng() < clamp(hr, 0.004, 0.22)) return { kind: 'hr', pitches: p };
   // 外野手臂力夠強的話，長打會被擋下來變成一壘安打
-  const extra = clamp(
+  let extra = clamp(
     0.055 + (power - 45) * 0.0016 + (b.speed + om.speed - 45) * 0.0012 + om.extraBase
       - (ctx.defArm - 50) * 0.0010,
     0.02, 0.3,
   );
+  if (has(pitcher, 'groundInduce')) extra -= 0.03;
+  if (has(batter, 'speedster')) extra += 0.03;
+  extra = clamp(extra, 0.02, 0.3);
   if (rng() < extra) {
     return rng() < 0.16 ? { kind: 'triple', pitches: p } : { kind: 'double', pitches: p };
   }
@@ -402,6 +438,7 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
       defArm: def.arm,
       inning,
       trailing: off.total < def.total,
+      defTrailing: def.total < off.total,
       // 每個人今天自己的手感，跟上面隊伍整體的 form 分開算
       batCondition: off.conditions.get(batter.id) ?? 1,
       pitchCondition: def.conditions.get(def.pitcher.id) ?? 1,
@@ -445,7 +482,8 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
         if (bases[2] && outs < 2 && rng() < 0.36) {
           scoreRunner(bases[2]); bases[2] = null; rbi += 1;
         } else if (bases[0] && outs < 2
-          && rng() < (has(batter, 'doublePlay') ? 0.22 : 0.12) + off.mods.dp) {
+          && rng() < (has(batter, 'doublePlay') ? 0.22 : has(batter, 'groundBallSafe') ? 0.06 : 0.12)
+            + off.mods.dp) {
           bases[0] = null; outs += 1;   // 雙殺
         }
         outs += 1;
