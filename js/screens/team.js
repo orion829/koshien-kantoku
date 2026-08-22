@@ -10,6 +10,7 @@ import { renderTimeline } from './timeline.js';
 import { initPlayerTooltip } from './playerTooltip.js';
 import { teamStrength } from '../rules/game.js';
 import { efficiency, moraleLabel } from '../rules/morale.js';
+import { COMMIT } from '../version.js';
 
 const TABS = [
   { id: 'week', name: '本週', render: renderWeek },
@@ -71,6 +72,7 @@ export function renderTeam(root, game, onReset) {
             </button>
           </div>
         </div>
+        <span class="version-tag" title="最後更新的版本">${COMMIT}</span>
       </header>
 
       <div id="timelineBox">${renderTimeline(game)}</div>

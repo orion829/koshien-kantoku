@@ -120,7 +120,18 @@ js/
     summary.js         成績單（存成 .svg 圖檔）
 tools/
   balance.mjs          平衡驗證（node tools/balance.mjs）
+  stamp-version.mjs    推上去之前跑，把目前 commit 標到主頁面（見下方「版本標記」）
 ```
+
+### 版本標記
+
+主頁面（開始畫面、主畫面）右下角會顯示一小行 commit 縮寫，方便確認
+瀏覽器裡跑的是哪個版本。純靜態網站沒有建置流程，沒辦法自動標上
+「這次 commit 自己」的 hash，所以流程是：**其他改動都 commit 完之後**，
+跑一次 `node tools/stamp-version.mjs`，把當下的 HEAD 標進
+`js/version.js`，再把這個小改動單獨 commit 一次、一起推上去。
+顯示的版本永遠會跟真正的 HEAD 差一個 commit（標記自己那個 commit
+沒辦法標到自己），這是純靜態、無建置步驟下的必然限制。
 
 ## 遊戲設計
 

@@ -2,6 +2,7 @@ import { REGIONS, byRegion, byId, TOTAL_TEAMS, REPRESENTATIVES } from '../data/p
 import { runSummary } from '../data/calendar.js';
 import { UI, randomManagerName, randomSchoolName } from '../strings.js';
 import { calendarYear } from '../rules/game.js';
+import { COMMIT } from '../version.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(4 - n);
 
@@ -15,6 +16,7 @@ export function renderSetup(root, onStart) {
         <h1 class="masthead__title">${UI.appTitle}</h1>
         <p class="masthead__sub">${UI.appSubtitle}</p>
         <p class="masthead__meta">全國 ${REPRESENTATIVES} 區・${TOTAL_TEAMS.toLocaleString()} ${UI.unitTeam}</p>
+        <span class="version-tag" title="最後更新的版本">${COMMIT}</span>
       </header>
 
       <div class="setup__body">
