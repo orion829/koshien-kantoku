@@ -3,5 +3,5 @@
 // 這個檔案要在 push 之前跑 node tools/stamp-version.mjs 更新，抓的是
 // 「執行當下」最新的 commit，所以更新版本這個 commit 本身不會被標到，
 // 永遠會晚一個 commit（那個 commit 只改這個檔案，不算功能）。
-export const COMMIT = '10cdbbd';
+export const COMMIT = '60dbc28';
 export const STAMPED_AT = '2026-08-22';
