@@ -8,7 +8,7 @@ import { renderAlumni } from './alumni.js';
 import { radarSVG } from './radar.js';
 import { renderTimeline } from './timeline.js';
 import { initPlayerTooltip } from './playerTooltip.js';
-import { teamStrength } from '../rules/game.js';
+import { teamStrength, ensureWeeklyConditions } from '../rules/game.js';
 import { efficiency, moraleLabel } from '../rules/morale.js';
 import { COMMIT } from '../version.js';
 
@@ -100,6 +100,10 @@ export function renderTeam(root, game, onReset) {
   }
 
   function draw() {
+    // 進到新的一週、玩家還沒動作之前就先抽好這週的狀態，
+    // 這樣選手名單、預覽卡才看得到「接下來要打的這週」的狀態，
+    // 不用等打完才知道
+    ensureWeeklyConditions(game);
     tabs.querySelectorAll('.tab').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.tab === active);
     });

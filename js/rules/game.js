@@ -355,6 +355,19 @@ function isLastWeekOfPhase(year, w) {
  * 做一個行動然後前進一週。
  * actionId 只有練習週要給。
  */
+/**
+ * 每一週都重新抽一次「這週的狀態」，不管是練習週還是比賽週。
+ * 用 cursor 位置當 key，同一週只抽一次——這樣畫面（選手名單、
+ * 預覽卡……）在玩家還沒動作之前就能看到這週的狀態，跟真的打起來
+ * 用的是同一組數字，不會「看到的」和「打出來的」不一樣。
+ */
+export function ensureWeeklyConditions(game, rng = Math.random) {
+  const key = `${game.cursor.year}-${game.cursor.week}`;
+  if (game.conditionsWeekKey === key) return;
+  refreshWeeklyConditions(active(game.team.players), rng);
+  game.conditionsWeekKey = key;
+}
+
 export function takeAction(game, actionId, rng = Math.random) {
   const w = currentWeek(game);
   if (!w) return null;
@@ -364,10 +377,7 @@ export function takeAction(game, actionId, rng = Math.random) {
   // 校務投資面板只顯示一畫面：離開這一畫面（不管做什麼行動）就收起來
   game.pendingInvest = false;
 
-  // 每一週都重新抽一次「這週的狀態」，不管是練習週還是比賽週——
-  // 這樣畫面上（選手名單、預覽卡……）隨時都看得到最新的狀態，
-  // 不用等打完比賽才知道
-  refreshWeeklyConditions(active(game.team.players), rng);
+  ensureWeeklyConditions(game, rng);
 
   const mods = modifiers(game);
   const boost = game.weekBoost || null;
