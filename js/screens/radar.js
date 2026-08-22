@@ -1,6 +1,9 @@
 // 隊伍能力雷達圖
 //
-// 八個角：前四個是打者（先發九人的平均），後四個是王牌投手。
+// 八個角：前四個是打者（先發九人的平均），後四個是投手（所有能上場
+// 投手的平均）。兩邊都要是「平均」才能公平比較——如果打者這邊是
+// 一群人的平均、投手那邊卻只挑王牌一個人的數字，投手那一半看起來
+// 一定會比較漂亮（因為沒被其他人拉低），不是隊伍真的比較會投。
 // 一眼就看得出這支隊伍是打擊型還是投手型。
 
 import { grade } from '../data/abilities.js';
@@ -24,14 +27,14 @@ export function teamProfile(all) {
   const pool = active(all).filter((p) => !isInjured(p));
   const batters = pool.filter((p) => !isPitcher(p))
     .sort((a, b) => overall(b) - overall(a)).slice(0, 9);
-  const ace = pool.filter(isPitcher).sort((a, b) => overall(b) - overall(a))[0];
+  const pitchers = pool.filter(isPitcher);
 
   const mean = (list, id) => (list.length
     ? list.reduce((n, p) => n + p.abilities[id], 0) / list.length : 0);
 
   return AXES.map((a) => ({
     ...a,
-    value: a.side === 'bat' ? mean(batters, a.id) : (ace ? ace.abilities[a.id] : 0),
+    value: a.side === 'bat' ? mean(batters, a.id) : mean(pitchers, a.id),
   }));
 }
 

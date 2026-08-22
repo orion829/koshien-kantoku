@@ -1,15 +1,12 @@
 // 生涯成績單：把這一路走來的成績做成一張可以存檔的圖
 //
-// 內容：歷年戰績、隊伍能力平均、目前隊上和歷屆畢業生的完整生涯數據、
-// 被職棒選走的畢業生、宿敵對戰紀錄。
+// 內容：隊伍經營生涯（經營幾年、生涯戰績、各賽事冠軍次數）、
+// 歷年戰績、隊伍能力平均、被職棒選走的畢業生、宿敵對戰紀錄。
 // 用 SVG 畫，因為不用套件、不用 canvas 像素運算，
 // 而且 SVG 本身就是一個合法的圖檔格式，直接存檔就能看。
 
 import { positionById, grade } from '../data/abilities.js';
-import {
-  teamStrength, calendarYear, RIVAL_THRESHOLD, graduatePathById,
-} from '../rules/game.js';
-import { battingLine, pitchingLine } from '../rules/player.js';
+import { teamStrength, calendarYear, RIVAL_THRESHOLD } from '../rules/game.js';
 import { teamProfile } from './radar.js';
 
 const COLORS = {
@@ -72,6 +69,29 @@ export function buildSummarySVG(game) {
   y += 14;
   hr(y);
 
+  // ── 隊伍經營生涯：經營幾年、生涯戰績、各賽事冠軍次數 ──
+  heading('隊伍經營生涯');
+  const totalRecord = Object.values(game.rivalRecords || {}).reduce(
+    (acc, r) => ({ wins: acc.wins + r.wins, losses: acc.losses + r.losses }),
+    { wins: 0, losses: 0 },
+  );
+  const totalGames = totalRecord.wins + totalRecord.losses;
+  const winPct = totalGames ? (totalRecord.wins / totalGames) * 100 : 0;
+  text(pad, y + 10, `經營 ${game.cursor.year} 年`, { size: 12.5, weight: 700 });
+  text(pad + 100, y + 10,
+    `生涯戰績 ${totalRecord.wins}勝${totalRecord.losses}敗（勝率 ${winPct.toFixed(1)}%）`,
+    { size: 12, color: COLORS.muted });
+  y += 20;
+  const champText = Object.entries(PHASE_NAME)
+    .map(([k, name]) => {
+      const n = game.progress.filter((p) => p[k]?.champion).length;
+      return n ? `${name}優勝 ${n} 次` : null;
+    })
+    .filter(Boolean)
+    .join('　');
+  text(pad, y + 4, champText || '（還沒拿過冠軍）', { size: 11.5, color: COLORS.accent });
+  y += 16;
+
   // ── 歷年戰績 ──
   heading('歷年戰績');
   game.progress.forEach((p, i) => {
@@ -102,72 +122,6 @@ export function buildSummarySVG(game) {
     text(barX + barMaxW + 10, y + 10, grade(a.value), { size: 12, weight: 700 });
     y += 20;
   });
-
-  // ── 球員生涯數據：目前隊上 + 歷屆畢業生，含已畢業的每一個人 ──
-  heading('球員生涯數據');
-  const fmtBat = (bat) => {
-    const b = battingLine(bat);
-    return b ? `AVG ${b.avg}・${b.hr}HR・${b.rbi}RBI・OPS ${b.ops}（${bat.games} 場）` : null;
-  };
-  const fmtPit = (pit) => {
-    const p = pitchingLine(pit);
-    return p ? `${p.ip}IP・ERA ${p.era}・WHIP ${p.whip}・${p.k}K（${pit.games} 場）` : null;
-  };
-
-  text(pad, y + 10, '目前隊上', { size: 12.5, weight: 700, color: COLORS.blue });
-  y += 20;
-  const current = [...game.team.players].sort((a, b) => {
-    if (!!a.retired !== !!b.retired) return a.retired ? 1 : -1;
-    return (b.gradeYear - a.gradeYear) || a.name.localeCompare(b.name);
-  });
-  if (!current.length) {
-    text(pad, y, '（還沒有球員資料）', { size: 11.5, color: COLORS.muted });
-    y += 18;
-  } else {
-    current.forEach((p) => {
-      const pos = positionById(p.position)?.short || '';
-      const gradeLabel = p.retired ? '已退隊' : `${p.gradeYear}年級`;
-      text(pad, y + 10, p.name, { size: 12, weight: 700 });
-      text(pad + 90, y + 10, `${pos}　${gradeLabel}`, { size: 10.5, color: COLORS.muted });
-      y += 16;
-      const batStr = fmtBat(p.career.bat);
-      const pitStr = fmtPit(p.career.pit);
-      [batStr, pitStr].filter(Boolean).forEach((line) => {
-        text(pad + 14, y + 8, line, { size: 10.5, color: COLORS.muted });
-        y += 14;
-      });
-      if (!batStr && !pitStr) {
-        text(pad + 14, y + 8, '沒有上場紀錄', { size: 10.5, color: COLORS.muted });
-        y += 14;
-      }
-      y += 4;
-    });
-  }
-
-  y += 10;
-  text(pad, y + 10, '歷屆畢業生', { size: 12.5, weight: 700, color: COLORS.blue });
-  y += 20;
-  const grads = [...(game.alumni || [])]
-    .filter((a) => a.role === 'player')
-    .sort((a, b) => b.year - a.year || a.name.localeCompare(b.name));
-  if (!grads.length) {
-    text(pad, y, '還沒有人畢業。', { size: 11.5, color: COLORS.muted });
-    y += 18;
-  } else {
-    grads.forEach((a) => {
-      const pos = positionById(a.position)?.short || '';
-      const stars = '★'.repeat(a.talent) + '☆'.repeat(5 - a.talent);
-      const outcome = a.drafted ? `⚾ 被 ${a.drafted.team} 選走` : (graduatePathById(a.path)?.label || '');
-      text(pad, y + 10, a.name, { size: 12, weight: 700 });
-      text(pad + 90, y + 10, `${pos}　${stars}　${calendarYear(a.year)}年畢業　${outcome}`, {
-        size: 10.5, color: COLORS.muted,
-      });
-      y += 16;
-      text(pad + 14, y + 8, `生涯：${a.career}`, { size: 10.5, color: COLORS.muted });
-      y += 14;
-      y += 4;
-    });
-  }
 
   // ── 職棒選秀 ──
   heading('職棒選秀');
