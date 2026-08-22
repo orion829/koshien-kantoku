@@ -1125,19 +1125,23 @@ table.bs .bs__avg { color: var(--muted); }
 table.bs td.hi { color: var(--accent); font-weight: 600; }
 table.bs td.warn-num { color: var(--danger); font-weight: 600; }
 
+/* 選手狀態五級配色，仿照實況野球：絕好調粉紅、好調紅、普通黃、
+   不調藍、絕不調紫——這五個顏色在選手名單、預覽卡、比賽詳細結果、
+   本週選手狀態欄都共用同一套 class，到處看到的顏色要一致 */
 .cond {
   display: inline-block;
   margin-left: 5px;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 0 4px;
   border-radius: 3px;
   vertical-align: middle;
 }
-.cond--great { color: #f0c34a; background: rgba(240, 195, 74, .14); }
-.cond--good { color: var(--green); background: rgba(111, 174, 122, .14); }
-.cond--bad { color: var(--accent); background: rgba(217, 138, 74, .14); }
-.cond--terrible { color: var(--danger); background: rgba(221, 122, 104, .14); }
+.cond--great { color: #f472b6; background: rgba(244, 114, 182, .16); }
+.cond--good { color: #e0483f; background: rgba(224, 72, 63, .16); }
+.cond--normal { color: #e8c547; background: rgba(232, 197, 71, .16); }
+.cond--bad { color: #6f9dc4; background: rgba(111, 157, 196, .16); }
+.cond--terrible { color: #9b6fd6; background: rgba(155, 111, 214, .16); }
 
 /* ---------- 精彩場面 ---------- */
 

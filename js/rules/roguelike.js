@@ -1822,13 +1822,13 @@ export const TRAINING_WONDER_EVENTS = [
     // 隊伍本身要先小有名氣才會被盯上，跟「被知名YouTuber盯上」（比賽週
     // 版，60）是同一條「越紅越麻煩」路線上更早的一階，但這次是點名
     // 「某一個人」，不是全隊——比賽週那個是全隊那天都不自在，
-    // 這個是單一球員接下來幾場比賽都會受影響。
+    // 這個是單一球員接下來幾週都會受影響。
     available: (game, fame) => fame >= 40 && canPlay(game).length > 0,
     apply: (game, rng) => {
       const p = pickOne(canPlay(game), rng);
-      p.badConditionGames = (p.badConditionGames || 0) + 2;
+      p.badConditionWeeks = (p.badConditionWeeks || 0) + 2;
       let note = `一位 J 開頭、超有名的棒球 YouTuber 在影片裡點名關注了 ${p.name}，`
-        + '壓力一下子變好大，接下來兩場比賽狀態應該會很差。';
+        + '壓力一下子變好大，接下來兩週狀態應該會很差。';
       if (rng() < 0.35) {
         const inj = injure(p, rng);
         note += `而且練習時一個閃神受傷了——${inj.label}（${inj.cause}），要休養 ${inj.weeks} 週。`;

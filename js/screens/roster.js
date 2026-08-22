@@ -54,8 +54,9 @@ function playerRow(p, registered, examBanned, lineupInfo) {
   const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
   const hurt = isInjured(p);
   const banned = examBanned?.has(p.id);
-  const jinxed = (p.badConditionGames || 0) > 0;
+  const jinxed = (p.badConditionWeeks || 0) > 0;
   const tired = (p.fatigue || 0) >= 50;
+  const cond = p.condition;
 
   return `
     <li class="player${hurt || banned ? ' player--hurt' : ''}" data-player="${p.id}">
@@ -66,12 +67,13 @@ function playerRow(p, registered, examBanned, lineupInfo) {
         <span class="growth growth--${gt.id}">${gt.name}</span>
         <span class="player__talent">${stars(p.talent)}</span>
         <span class="player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
+        ${cond ? `<span class="cond cond--${cond.id}">${cond.label}</span>` : ''}
       </button>
       ${registered && !registered.has(p.id) ? '<span class="bench">板凳</span>' : ''}
       ${lineupTag(p, lineupInfo) ? `<span class="lineup-tag">${lineupTag(p, lineupInfo)}</span>` : ''}
       ${hurt ? `<span class="status-badge">🤕 養傷中・還要 ${p.injury.weeks} 週</span>` : ''}
       ${banned ? '<span class="status-badge">📕 停賽中・學力不及格</span>' : ''}
-      ${jinxed ? `<span class="status-badge">💫 被知名YouTuber點名關注・還要 ${p.badConditionGames} 場比賽狀態低迷</span>` : ''}
+      ${jinxed ? `<span class="status-badge">💫 被知名YouTuber點名關注・還要 ${p.badConditionWeeks} 週狀態低迷</span>` : ''}
       ${tired ? `<span class="status-badge status-badge--tired">🥱 ${fatigueLabel(p.fatigue)}</span>` : ''}
       <div class="player__stats">${chips}
         <span class="stat"><i>學力</i><b class="g g--${grade(p.gakuryoku)}">${grade(p.gakuryoku)}</b></span>

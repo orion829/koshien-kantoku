@@ -63,14 +63,16 @@ export function renderLineup(root, game) {
       ? `球速 ${playerVelocity(p)} km/h・控球 ${grade(p.abilities.control)}`
       : `打擊 ${grade(p.abilities.meet)}・力量 ${grade(p.abilities.power)}`;
     const tired = (p.fatigue || 0) >= 50;
-    const jinxed = (p.badConditionGames || 0) > 0;
+    const jinxed = (p.badConditionWeeks || 0) > 0;
+    const cond = p.condition;
     return `
       <li class="lineup-row lineup-row--view">
         <span class="lineup-row__num">${i + 1}棒</span>
         <span class="lineup-row__pos">${pos}</span>
         <span class="lineup-row__name">${p.name}
           <b class="g g--${overallGrade(p)}">${overallGrade(p)}</b>
-          ${jinxed ? `<span title="被知名YouTuber點名關注・還要 ${p.badConditionGames} 場比賽狀態低迷">💫</span>` : ''}</span>
+          ${cond ? `<span class="cond cond--${cond.id}">${cond.label}</span>` : ''}
+          ${jinxed ? `<span title="被知名YouTuber點名關注・還要 ${p.badConditionWeeks} 週狀態低迷">💫</span>` : ''}</span>
         <span class="lineup-row__key">${key}</span>
         <span class="lineup-row__fatigue${tired ? ' lineup-row__fatigue--tired' : ''}">
           ${tired ? '🥱 ' : ''}疲勞 ${fatigueLabel(p.fatigue)}</span>
@@ -81,7 +83,8 @@ export function renderLineup(root, game) {
     <li class="lineup-row lineup-row--view">
       <span class="lineup-row__pos">投</span>
       <span class="lineup-row__name">${p.name}
-        <b class="g g--${overallGrade(p)}">${overallGrade(p)}</b></span>
+        <b class="g g--${overallGrade(p)}">${overallGrade(p)}</b>
+        ${p.condition ? `<span class="cond cond--${p.condition.id}">${p.condition.label}</span>` : ''}</span>
       <span class="lineup-row__key">球速 ${playerVelocity(p)} km/h</span>
     </li>`).join('') : '<li class="muted">沒有其他能上場的投手了。</li>';
 

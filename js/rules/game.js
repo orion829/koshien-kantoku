@@ -17,7 +17,7 @@ import {
   overall, isPitcher, createPlayer, boostPotential, accumulateCareerStats, careerLine,
 } from './player.js';
 import {
-  generateOpponent, buildLineup, playMatch, rollConditions,
+  generateOpponent, buildLineup, playMatch, refreshWeeklyConditions, conditionMultipliers,
 } from './match.js';
 import { randomProTeam } from '../data/proTeams.js';
 import {
@@ -224,9 +224,10 @@ export function playWeek(game, rng = Math.random, wonder = null) {
     const custom = game.customLineup;
     const pitcherId = custom?.pitchers?.length
       ? custom.pitchers[i % custom.pitchers.length] : null;
-    // 每一場都重抽一次「今天的狀態」——這才是先發野手也可能被冷板凳
-    // 換掉的理由：自動排的時候，狀態夠差的先發會被狀態好的替補比下去
-    const conditions = rollConditions(registered, rng);
+    // 這週的狀態已經在 takeAction 一開始抽好了（p.condition），這裡只是
+    // 換成 buildLineup／playMatch 要的倍率表——這才是先發野手也可能被
+    // 冷板凳換掉的理由：自動排的時候，狀態夠差的先發會被狀態好的替補比下去
+    const conditions = conditionMultipliers(registered);
     const mine = buildLineup(registered, {
       cannotPitch, pitcherId, customOrder: custom?.order || null, conditions,
     });
@@ -362,6 +363,11 @@ export function takeAction(game, actionId, rng = Math.random) {
     || game.pendingAwaken || game.pendingAlumniVisit || game.pendingWildVisit) return null;
   // 校務投資面板只顯示一畫面：離開這一畫面（不管做什麼行動）就收起來
   game.pendingInvest = false;
+
+  // 每一週都重新抽一次「這週的狀態」，不管是練習週還是比賽週——
+  // 這樣畫面上（選手名單、預覽卡……）隨時都看得到最新的狀態，
+  // 不用等打完比賽才知道
+  refreshWeeklyConditions(active(game.team.players), rng);
 
   const mods = modifiers(game);
   const boost = game.weekBoost || null;

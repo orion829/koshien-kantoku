@@ -900,13 +900,14 @@ head('選手狀態：今天的手感要真的能讓板凳把先發擠下去，�
   const trials3 = 400;
   for (let i = 0; i < trials3; i += 1) {
     p3.injury = null;
-    p3.badConditionGames = 0;
+    p3.badConditionWeeks = 0;
     josh.apply(gJosh, Math.random);
     if (p3.injury) injuredCount += 1;
   }
-  console.log(`  套用效果之後 badConditionGames=${p3.badConditionGames}（要是 2）`);
-  const condAfter = MT.rollConditions([p3], Math.random).get(p3.id);
-  console.log(`  接下來那場比賽重抽狀態：${condAfter === MT.CONDITION_TIERS.find((t) => t.id === 'terrible').mult ? '強制絕不好調（對）' : '沒有被強制（要重新檢查）'}`);
+  console.log(`  套用效果之後 badConditionWeeks=${p3.badConditionWeeks}（要是 2）`);
+  MT.refreshWeeklyConditions([p3], Math.random);
+  const condAfter = p3.condition;
+  console.log(`  接下來那週重抽狀態：${condAfter.id === 'terrible' ? '強制絕不調（對）' : '沒有被強制（要重新檢查）'}`);
   console.log(`  ${trials3} 次裡受傷 ${injuredCount} 次，機率 ${((injuredCount / trials3) * 100).toFixed(0)}%（設計上約 35%）`);
 }
 

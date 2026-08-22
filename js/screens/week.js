@@ -47,14 +47,15 @@ function compactRosterSide(game) {
     const pos = positionById(p.position)?.short || '';
     const hurt = isInjured(p);
     const isBanned = banned.has(p.id);
-    const jinxed = !hurt && !isBanned && (p.badConditionGames || 0) > 0;
+    const jinxed = !hurt && !isBanned && (p.badConditionWeeks || 0) > 0;
     const tired = !hurt && !isBanned && !jinxed && (p.fatigue || 0) >= 50;
+    const cond = p.condition;
 
     let flag = '';
     if (hurt) flag = `<span class="side-player__flag" title="養傷中・還要 ${p.injury.weeks} 週">🤕</span>`;
     else if (isBanned) flag = '<span class="side-player__flag" title="停賽中・學力不及格">📕</span>';
     else if (jinxed) {
-      flag = `<span class="side-player__flag" title="被知名YouTuber點名關注・還要 ${p.badConditionGames} 場比賽狀態低迷">💫</span>`;
+      flag = `<span class="side-player__flag" title="被知名YouTuber點名關注・還要 ${p.badConditionWeeks} 週狀態低迷">💫</span>`;
     } else if (tired) flag = `<span class="side-player__flag" title="${fatigueLabel(p.fatigue)}">🥱</span>`;
 
     return `
@@ -62,6 +63,7 @@ function compactRosterSide(game) {
         <span class="side-player__pos">${pos}</span>
         <span class="side-player__name" data-pid="${p.id}">${p.name}</span>
         <span class="side-player__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
+        ${cond ? `<span class="cond cond--${cond.id}">${cond.label}</span>` : ''}
         ${flag}
       </li>`;
   };

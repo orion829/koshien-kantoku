@@ -33,8 +33,9 @@ function tipHTML(p, game) {
   const gt = GROWTH_TYPES[p.growthType] || GROWTH_TYPES.normal;
   const hurt = isInjured(p);
   const banned = (game.examBanned || []).includes(p.id);
-  const jinxed = (p.badConditionGames || 0) > 0;
+  const jinxed = (p.badConditionWeeks || 0) > 0;
   const tired = (p.fatigue || 0) >= 50;
+  const cond = p.condition;
   const main = isPitcher(p) ? PITCHER_STATS : BATTER_STATS;
   const chips = main.map((s) => {
     const g = grade(p.abilities[s.id]);
@@ -47,6 +48,7 @@ function tipHTML(p, game) {
       <span class="player-tip__pos">${pos}</span>
       <b class="player-tip__name">${p.name}</b>
       <span class="player-tip__ovr g g--${overallGrade(p)}">${overallGrade(p)}</span>
+      ${cond ? `<span class="cond cond--${cond.id}">${cond.label}</span>` : ''}
     </div>
     <div class="player-tip__line">
       ${p.gradeYear}年級・${gt.name}・${stars(p.talent)}
@@ -59,7 +61,7 @@ function tipHTML(p, game) {
     ${tag ? `<div class="player-tip__tag">${tag}</div>` : ''}
     ${hurt ? `<div class="player-tip__warn">🤕 養傷中・還要 ${p.injury.weeks} 週</div>` : ''}
     ${banned ? '<div class="player-tip__warn">📕 停賽中・學力不及格</div>' : ''}
-    ${jinxed ? `<div class="player-tip__warn">💫 被知名YouTuber點名關注・還要 ${p.badConditionGames} 場比賽狀態低迷</div>` : ''}
+    ${jinxed ? `<div class="player-tip__warn">💫 被知名YouTuber點名關注・還要 ${p.badConditionWeeks} 週狀態低迷</div>` : ''}
     ${tired ? `<div class="player-tip__warn player-tip__warn--tired">🥱 ${fatigueLabel(p.fatigue)}</div>` : ''}`;
 }
 

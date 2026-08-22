@@ -29,14 +29,32 @@ const GIVEN_FEMALE = [
 
 const pick = (list, rng = Math.random) => list[Math.floor(rng() * list.length)];
 
+// 姓＋名隨機兜起來，偶爾會剛好撞到真實存在的人（運動員、藝人）或
+// 動漫角色的全名——抽到這些就重抽一次，避免玩家看到眼熟的名字。
+const BANNED_FULL_NAMES = new Set([
+  '藤原 拓海', // 頭文字D 主角
+  '鈴木 大地', // 現實中的知名運動員
+  '前田 健太', // 現實中的職棒投手
+  '遠藤 航', // 現實中的足球國家隊隊長
+  '井上 真央', // 現實中的知名女演員
+]);
+
 /** 隨機一個日本人名，例如「山田 太郎」 */
 export function randomPersonName(rng = Math.random) {
-  return `${pick(SURNAMES, rng)} ${pick(GIVEN, rng)}`;
+  let name;
+  do {
+    name = `${pick(SURNAMES, rng)} ${pick(GIVEN, rng)}`;
+  } while (BANNED_FULL_NAMES.has(name));
+  return name;
 }
 
 /** 隨機一個女生的名字，給球隊經理用 */
 export function randomManagerName(rng = Math.random) {
-  return `${pick(SURNAMES, rng)} ${pick(GIVEN_FEMALE, rng)}`;
+  let name;
+  do {
+    name = `${pick(SURNAMES, rng)} ${pick(GIVEN_FEMALE, rng)}`;
+  } while (BANNED_FULL_NAMES.has(name));
+  return name;
 }
 
 // 前面 20 個是清爽好聽的，後面 16 個故意取得中二一點——

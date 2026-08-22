@@ -57,18 +57,22 @@ function teamRating(players) {
 
 // ── 選手狀態 ────────────────────────────────────────────
 //
-// 每一場比賽，每個人都會有「今天的狀態」——不是疲勞、不是受傷，
-// 單純是手感好壞。這是先發野手也會被冷板凳球員換掉的理由：
-// 狀態夠差的先發，狀態夠好的替補可能就會把他的位置搶走。
-// 跟球隊整體的「今天的氣勢」（form）是分開算的，兩個都有效。
+// 每一週，每個人都會有「這週的狀態」——不是疲勞、不是受傷，單純是
+// 手感好壞，仿照實況野球的五級配色。這是持續一整週的狀態（存在
+// p.condition 上），不是打完比賽才看得到，隨時可以在畫面上查看。
+// 這也是先發野手也會被冷板凳球員換掉的理由：狀態夠差的先發，狀態
+// 夠好的替補可能就會把他的位置搶走。跟球隊整體的「今天的氣勢」
+// （form，比賽模擬裡另外算的）是分開的兩層，兩個都有效。
 
 export const CONDITION_TIERS = [
-  { id: 'great', label: '絕好調', mult: 1.20, weight: 8 },
-  { id: 'good', label: '好調', mult: 1.08, weight: 22 },
-  { id: 'normal', label: '普通', mult: 1.00, weight: 40 },
-  { id: 'bad', label: '不好調', mult: 0.92, weight: 22 },
-  { id: 'terrible', label: '絕不好調', mult: 0.80, weight: 8 },
+  { id: 'great', label: '絕好調', color: 'pink', mult: 1.20, weight: 8 },
+  { id: 'good', label: '好調', color: 'red', mult: 1.08, weight: 22 },
+  { id: 'normal', label: '普通', color: 'yellow', mult: 1.00, weight: 40 },
+  { id: 'bad', label: '不調', color: 'blue', mult: 0.92, weight: 22 },
+  { id: 'terrible', label: '絕不調', color: 'purple', mult: 0.80, weight: 8 },
 ];
+
+export const conditionTierById = (id) => CONDITION_TIERS.find((t) => t.id === id);
 
 function rollConditionTier(rng) {
   const total = CONDITION_TIERS.reduce((n, t) => n + t.weight, 0);
@@ -80,28 +84,32 @@ function rollConditionTier(rng) {
   return CONDITION_TIERS[CONDITION_TIERS.length - 1];
 }
 
-const TERRIBLE_MULT = CONDITION_TIERS.find((t) => t.id === 'terrible').mult;
+const TERRIBLE_TIER = conditionTierById('terrible');
 
 /**
- * 幫一批球員各自抽一次「今天的狀態」，回傳 Map<球員id, 能力倍率>。
- * 每一場比賽都要重抽一次——這是「今天」的狀態，不是長期的。
+ * 幫一批球員重新抽一次「這一週的狀態」，直接存進 p.condition
+ * （{id,label,color,mult}）——每一週都要呼叫一次，不管那週是練習還是
+ * 比賽，這樣畫面上隨時查看都有最新的狀態，不用等打完比賽才知道。
  *
- * p.badConditionGames：有些奇妙事件（例如被知名 YouTuber 點名關注）
- * 會讓某個球員接下來幾場比賽狀態強制變差，不是隨機抽——這裡每算一場
- * 比賽就消耗一場額度，額度用完就恢復正常隨機抽。
+ * p.badConditionWeeks：有些奇妙事件（例如被知名 YouTuber 點名關注）
+ * 會讓某個球員接下來幾週狀態強制變差，不是隨機抽——這裡每算一週
+ * 就消耗一週額度，額度用完就恢復正常隨機抽。
  */
-export function rollConditions(players, rng = Math.random) {
-  return new Map(players.map((p) => {
-    if (p.badConditionGames > 0) {
-      p.badConditionGames -= 1;
-      return [p.id, TERRIBLE_MULT];
+export function refreshWeeklyConditions(players, rng = Math.random) {
+  players.forEach((p) => {
+    if (p.badConditionWeeks > 0) {
+      p.badConditionWeeks -= 1;
+      p.condition = TERRIBLE_TIER;
+    } else {
+      p.condition = rollConditionTier(rng);
     }
-    return [p.id, rollConditionTier(rng).mult];
-  }));
+  });
 }
 
-/** 倍率換回狀態等級（給畫面顯示用，「普通」不特別顯示） */
-const tierForMult = (mult) => CONDITION_TIERS.find((t) => t.mult === mult);
+/** p.condition 換成 Map<球員id, 能力倍率>，給 buildLineup／playMatch 用 */
+export function conditionMultipliers(players) {
+  return new Map(players.map((p) => [p.id, p.condition?.mult ?? 1]));
+}
 
 // ── 上場陣容 ────────────────────────────────────────────
 
@@ -532,12 +540,11 @@ function halfInning(off, def, inning, plays, rng, tiebreak = false) {
 }
 
 function summarise(s, team) {
-  // 只挑出「普通」以外的狀態給畫面顯示——存檔要能 JSON 序列化，
-  // 所以換成單純的物件，不能直接存 Map
+  // 直接從球員身上讀這一週的狀態（p.condition）——存檔要能 JSON
+  // 序列化，所以換成單純的物件，不能直接存球員參考
   const conditions = {};
-  s.conditions.forEach((mult, id) => {
-    const tier = tierForMult(mult);
-    if (tier && tier.id !== 'normal') conditions[id] = { id: tier.id, label: tier.label };
+  [...team.order.map((o) => o.player), ...(team.bullpen || [])].forEach((p) => {
+    if (p.condition) conditions[p.id] = { id: p.condition.id, label: p.condition.label };
   });
   return {
     name: s.name,
